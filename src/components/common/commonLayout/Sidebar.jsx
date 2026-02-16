@@ -127,7 +127,7 @@ const sidebars = {
       icon: LuSquareUserRound,
     },
     { name: "Calendar", path: "/bha/calendar", icon: LuCalendarDays },
-    { name: "VHA Schedule", path: "/bha/bha-schedule", icon: LuCalendarDays },
+    { name: "BHA Schedule", path: "/bha/bha-schedule", icon: LuCalendarDays },
     { name: "Tasks and Goals", path: "/bha/tasks-and-goals", icon: GrTask },
     { name: "Reports", path: "/bha/reports", icon: CgFileDocument },
     { name: "Messages", path: "/bha/messages", icon: AiOutlineMessage },

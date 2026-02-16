@@ -10,13 +10,29 @@ export const bhaScheduleSlotApi = baseApi.injectEndpoints({
       }),
       providesTags: ["BhaScheduleSlot"],
     }),
+    getBhaScheduleSlotDate: builder.query({
+      query: ({ month }) => ({
+        url: `/doctor-booking/my-doctor-available-date`,
+        method: "GET",
+        params: { month },
+      }),
+      providesTags: ["BhaScheduleSlot"],
+    }),
+    getBhaDoctorAvailableSlots: builder.query({
+      query: ({ date }) => ({
+        url: `/doctor-booking/my-doctor-available-slots`,
+        method: "GET",
+        params: { date },
+      }),
+      providesTags: ["BhaScheduleSlot"],
+    }),
 
-    // Update availability - expects array of { day, availableSlots: [{ startTime, endTime }] }
+    // Update availability - body: { date (ISO), startTime, endTime }
     updateBhaAvailability: builder.mutation({
-      query: (availability) => ({
+      query: (body) => ({
         url: `/doctor/update-availability`,
         method: "POST",
-        body: availability,
+        body,
       }),
       invalidatesTags: ["BhaScheduleSlot", "SessionManagement"],
     }),
@@ -55,6 +71,8 @@ export const bhaScheduleSlotApi = baseApi.injectEndpoints({
 
 export const {
   useGetBhaScheduleSlotDataQuery,
+  useGetBhaScheduleSlotDateQuery,
+  useGetBhaDoctorAvailableSlotsQuery,
   useUpdateBhaAvailabilityMutation,
   useJoinSessionNowMutation,
   useLeaveSessionNowMutation,

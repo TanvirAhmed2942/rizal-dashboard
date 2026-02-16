@@ -1,34 +1,90 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { HiPlus } from "react-icons/hi";
-import ScheduleCard from "./ScheduleCard";
+import ScheduleCalendarSection from "./ScheduleCalendarSection";
+import DateTimeSelectionCard from "./DateTimeSelectionCard";
+import TimeSlotsSection from "./TimeSlotsSection";
 import ScheduleAddEditModal from "./ScheduleAddEditModal";
-import { useGetBhaScheduleSlotDataQuery } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
+import { useGetBhaDoctorAvailableSlotsQuery } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
+
+function toDateISO(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}T00:00:00.000Z`;
+}
+
+function formatSlot(slot) {
+  if (!slot || typeof slot !== "object") return "";
+  const start = slot.startTime ?? "";
+  const end = slot.endTime ?? "";
+  return start && end ? `${start} - ${end}` : "";
+}
 
 function BhaScheduleLayout() {
-  const { data: scheduleSlotData, isLoading: isScheduleSlotLoading } =
-    useGetBhaScheduleSlotDataQuery();
-
-  const availability = scheduleSlotData?.data?.availability || [];
-
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
 
-  const handleAddSchedule = () => {
+  const dateParam = useMemo(() => toDateISO(selectedDate), [selectedDate]);
+  const { data: slotsResponse, error: slotsError } = useGetBhaDoctorAvailableSlotsQuery(
+    { date: dateParam },
+    { skip: !dateParam },
+  );
+
+  const dateNotFound =
+    (slotsResponse?.success === false && slotsResponse?.message?.includes("Date not found")) ||
+    (slotsError?.data?.success === false && slotsError?.data?.message?.includes("Date not found"));
+
+  const slotData = dateNotFound ? null : (slotsResponse?.data?.data ?? null);
+  const availableSlotsRaw = dateNotFound ? [] : (slotsResponse?.data?.availableSlots ?? []);
+  const bookingSlotsRaw = dateNotFound ? [] : (slotsResponse?.data?.bookingSlots ?? []);
+
+  const startTime = slotData?.startTime ?? "";
+  const endTime = slotData?.endTime ?? "";
+  const bookedSlots = useMemo(
+    () => bookingSlotsRaw.map(formatSlot).filter(Boolean),
+    [bookingSlotsRaw],
+  );
+  const availableSlots = useMemo(
+    () => availableSlotsRaw.map(formatSlot).filter(Boolean),
+    [availableSlotsRaw],
+  );
+
+  const handleDateSelect = useCallback((date) => {
+    setSelectedDate(date);
+  }, []);
+
+  const handleEditCard = useCallback(() => {
+    setEditingSchedule({
+      date: selectedDate,
+      startTime,
+      endTime,
+    });
+    setIsModalOpen(true);
+  }, [selectedDate, startTime, endTime]);
+
+  const handleDeleteCard = useCallback(() => {
+    // Delete is typically an API call; layout state is driven by API. No-op or invalidate query.
+  }, []);
+
+  const setOpenModal = useCallback((open) => {
+    setIsModalOpen(open);
+    if (!open) setEditingSchedule(null);
+  }, []);
+
+  const handleAddSchedule = useCallback(() => {
     setEditingSchedule(null);
     setIsModalOpen(true);
-  };
-
-  const handleEdit = () => {
-    setEditingSchedule({ availability });
-    setIsModalOpen(true);
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
+      {/* Header: page info + Add button */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
@@ -47,24 +103,34 @@ function BhaScheduleLayout() {
         </Button>
       </div>
 
-      {/* Schedule Card */}
-      <div className="space-y-4">
-        {isScheduleSlotLoading ? (
-          <div className="text-center py-8 text-gray-500">Loading...</div>
-        ) : availability.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No schedule available. Click "Add Schedule" to create one.
-          </div>
-        ) : (
-          <ScheduleCard availability={availability} onEdit={handleEdit} />
-        )}
-      </div>
+      {/* 1. Calendar Section */}
+      <ScheduleCalendarSection
+        selectedDate={selectedDate}
+        onSelect={handleDateSelect}
+      />
 
-      {/* Add/Edit Modal */}
+      {/* 2. Date & Time Selection Card */}
+      <DateTimeSelectionCard
+        selectedDate={selectedDate}
+        startTime={startTime}
+        endTime={endTime}
+        onEdit={handleEditCard}
+        onDelete={handleDeleteCard}
+      />
+
+      {/* 3. Time Slots Section (Booked / Available) */}
+      <TimeSlotsSection
+        bookedSlots={bookedSlots}
+        availableSlots={availableSlots}
+        noSlotsForDay={dateNotFound}
+      />
+
+      {/* Add/Edit Modal (optional – for edit flow from card) */}
       <ScheduleAddEditModal
         openModal={isModalOpen}
-        setOpenModal={setIsModalOpen}
+        setOpenModal={setOpenModal}
         scheduleData={editingSchedule}
+        initialSelectedDate={selectedDate}
       />
     </div>
   );

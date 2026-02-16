@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
+
 import { IoIosNotificationsOutline } from "react-icons/io";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
@@ -107,10 +107,10 @@ export default function Header() {
                 userRole === "admin" || userRole === "super_admin"
                   ? "/admin/notifications"
                   : userRole === "doctor"
-                  ? "/bha/notifications"
-                  : userRole === "assistant"
-                  ? "/bhaa/notifications"
-                  : "/auth/login"
+                    ? "/bha/notifications"
+                    : userRole === "assistant"
+                      ? "/bhaa/notifications"
+                      : "/auth/login",
               );
             }}
           >
@@ -157,10 +157,10 @@ export default function Header() {
                     userRole === "admin" || userRole === "super_admin"
                       ? "/admin/change-password"
                       : userRole === "doctor"
-                      ? "/bha/change-password"
-                      : userRole === "assistant"
-                      ? "/bhaa/change-password"
-                      : "/auth/login"
+                        ? "/bha/change-password"
+                        : userRole === "assistant"
+                          ? "/bhaa/change-password"
+                          : "/auth/login"
                   }
                   className="cursor-pointer"
                 >
