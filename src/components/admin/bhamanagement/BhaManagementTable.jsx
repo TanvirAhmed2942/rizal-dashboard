@@ -260,7 +260,7 @@ function BhaManagementTable({
                           className="border border-gray-400 h-8"
                           onClick={() => handleViewDetails(data)}
                         >
-                          View Details
+                          Details
                         </Button>
                         <Button
                           variant="outline"
@@ -275,9 +275,9 @@ function BhaManagementTable({
                           {isCurrentlyBlocking ? (
                             <Loader className="w-4 h-4 animate-spin" />
                           ) : isActive ? (
-                            "Block"
+                            "Deactivate"
                           ) : (
-                            "Unblock"
+                            "Activate"
                           )}
                         </Button>
                       </div>

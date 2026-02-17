@@ -7,14 +7,18 @@ import ScheduleCalendarSection from "./ScheduleCalendarSection";
 import DateTimeSelectionCard from "./DateTimeSelectionCard";
 import TimeSlotsSection from "./TimeSlotsSection";
 import ScheduleAddEditModal from "./ScheduleAddEditModal";
-import { useGetBhaDoctorAvailableSlotsQuery } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
+import {
+  useGetBhaDoctorAvailableSlotsQuery,
+  useDoctorSlotsUpdateDeleteMutation,
+} from "@/redux/Apis/bha/scheuleApi/scheduleApi";
+import useToast from "@/hooks/useToast";
 
 function toDateISO(date) {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}T00:00:00.000Z`;
 }
 
@@ -26,9 +30,15 @@ function formatSlot(slot) {
 }
 
 function BhaScheduleLayout() {
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const toast = useToast();
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const n = new Date();
+    return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [slotsUpdateDelete, { isLoading: isSlotsActionLoading }] =
+    useDoctorSlotsUpdateDeleteMutation();
 
   const dateParam = useMemo(() => toDateISO(selectedDate), [selectedDate]);
   const { data: slotsResponse, error: slotsError } = useGetBhaDoctorAvailableSlotsQuery(
@@ -44,6 +54,7 @@ function BhaScheduleLayout() {
   const availableSlotsRaw = dateNotFound ? [] : (slotsResponse?.data?.availableSlots ?? []);
   const bookingSlotsRaw = dateNotFound ? [] : (slotsResponse?.data?.bookingSlots ?? []);
 
+  const slotId = slotData?._id ?? null;
   const startTime = slotData?.startTime ?? "";
   const endTime = slotData?.endTime ?? "";
   const bookedSlots = useMemo(
@@ -60,17 +71,25 @@ function BhaScheduleLayout() {
   }, []);
 
   const handleEditCard = useCallback(() => {
+    if (!slotId) return;
     setEditingSchedule({
+      id: slotId,
       date: selectedDate,
       startTime,
       endTime,
     });
     setIsModalOpen(true);
-  }, [selectedDate, startTime, endTime]);
+  }, [selectedDate, startTime, endTime, slotId]);
 
-  const handleDeleteCard = useCallback(() => {
-    // Delete is typically an API call; layout state is driven by API. No-op or invalidate query.
-  }, []);
+  const handleDeleteCard = useCallback(async () => {
+    if (!slotId) return;
+    try {
+      await slotsUpdateDelete({ action: "delete", id: slotId }).unwrap();
+      toast.success("Schedule deleted successfully");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete schedule");
+    }
+  }, [slotId, slotsUpdateDelete, toast]);
 
   const setOpenModal = useCallback((open) => {
     setIsModalOpen(open);
@@ -114,8 +133,10 @@ function BhaScheduleLayout() {
         selectedDate={selectedDate}
         startTime={startTime}
         endTime={endTime}
+        slotId={slotId}
         onEdit={handleEditCard}
         onDelete={handleDeleteCard}
+        isActionLoading={isSlotsActionLoading}
       />
 
       {/* 3. Time Slots Section (Booked / Available) */}

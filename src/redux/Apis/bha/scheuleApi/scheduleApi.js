@@ -37,6 +37,16 @@ export const bhaScheduleSlotApi = baseApi.injectEndpoints({
       invalidatesTags: ["BhaScheduleSlot", "SessionManagement"],
     }),
 
+    // Update or delete a slot - body: { action: "update"|"delete", id, startTime?, endTime? } (startTime/endTime only for update)
+    doctorSlotsUpdateDelete: builder.mutation({
+      query: (body) => ({
+        url: `/doctor/slots-upate-delete`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["BhaScheduleSlot", "SessionManagement"],
+    }),
+
     // Join the session
     joinSessionNow: builder.mutation({
       query: ({ bookingId }) => ({
@@ -74,6 +84,7 @@ export const {
   useGetBhaScheduleSlotDateQuery,
   useGetBhaDoctorAvailableSlotsQuery,
   useUpdateBhaAvailabilityMutation,
+  useDoctorSlotsUpdateDeleteMutation,
   useJoinSessionNowMutation,
   useLeaveSessionNowMutation,
   useExtendSessionFiveMinutesMutation,

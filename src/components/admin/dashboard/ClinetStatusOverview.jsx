@@ -56,14 +56,16 @@ export function ClinetStatusOverview({ userInfoData }) {
         toast.success(
           isCurrentlyActive
             ? "User blocked successfully"
-            : "User unblocked successfully"
+            : "User unblocked successfully",
         );
       } else {
         toast.error(response?.message || "Failed to update user status");
       }
     } catch (error) {
       toast.error(
-        error?.data?.message || error?.message || "Failed to update user status"
+        error?.data?.message ||
+          error?.message ||
+          "Failed to update user status",
       );
     } finally {
       setBlockingUserId(null);
@@ -152,7 +154,7 @@ export function ClinetStatusOverview({ userInfoData }) {
                       className="border border-gray-400 h-8"
                       onClick={() => handleViewDetails(data)}
                     >
-                      View Details
+                      Details
                     </Button>
                     {(() => {
                       // isActive: true = user is active, show Block button
@@ -181,9 +183,9 @@ export function ClinetStatusOverview({ userInfoData }) {
                               <Loader className="w-4 h-4 animate-spin" />
                             )
                           ) : isActive ? (
-                            "Block"
+                            "Deactivate"
                           ) : (
-                            "Unblock"
+                            "Activate"
                           )}
                         </Button>
                       );

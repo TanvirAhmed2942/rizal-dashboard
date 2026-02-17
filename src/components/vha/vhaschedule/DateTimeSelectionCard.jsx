@@ -10,9 +10,9 @@ const DAY_NAMES = [
 
 function formatDateDDMMYYYY(date) {
   if (!date) return "";
-  const d = date.getDate();
-  const m = date.getMonth() + 1;
-  const y = date.getFullYear();
+  const d = date.getUTCDate();
+  const m = date.getUTCMonth() + 1;
+  const y = date.getUTCFullYear();
   return `${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
 }
 
@@ -20,12 +20,15 @@ export default function DateTimeSelectionCard({
   selectedDate,
   startTime,
   endTime,
+  slotId,
   onEdit,
   onDelete,
+  isActionLoading = false,
   className,
 }) {
-  const dayName = selectedDate ? DAY_NAMES[selectedDate.getDay()] : "";
+  const dayName = selectedDate ? DAY_NAMES[selectedDate.getUTCDay()] : "";
   const dateStr = formatDateDDMMYYYY(selectedDate);
+  const canEditDelete = Boolean(slotId);
 
   return (
     <section
@@ -38,7 +41,8 @@ export default function DateTimeSelectionCard({
         <button
           type="button"
           onClick={onEdit}
-          className="size-8 flex items-center justify-center rounded-md bg-amber-100 hover:bg-amber-200 text-amber-700 transition-colors"
+          disabled={!canEditDelete || isActionLoading}
+          className="size-8 flex items-center justify-center rounded-md bg-amber-100 hover:bg-amber-200 text-amber-700 transition-colors disabled:opacity-50 disabled:pointer-events-none"
           aria-label="Edit"
         >
           <Pencil className="size-4" />
@@ -46,7 +50,8 @@ export default function DateTimeSelectionCard({
         <button
           type="button"
           onClick={onDelete}
-          className="size-8 flex items-center justify-center rounded-md bg-red-100 hover:bg-red-200 text-red-600 transition-colors"
+          disabled={!canEditDelete || isActionLoading}
+          className="size-8 flex items-center justify-center rounded-md bg-red-100 hover:bg-red-200 text-red-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
           aria-label="Delete"
         >
           <Trash2 className="size-4" />

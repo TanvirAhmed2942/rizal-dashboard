@@ -21,19 +21,19 @@ const MONTH_NAMES = [
   "December",
 ];
 
-function isSameDay(a, b) {
+function isSameDayUTC(a, b) {
   if (!a || !b) return false;
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
   );
 }
 
-function toYYYYMMDD(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+function toYYYYMMDDUTC(date) {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
@@ -43,7 +43,7 @@ function parseAvailableDates(data) {
     data.map((iso) => {
       try {
         const date = new Date(iso);
-        return toYYYYMMDD(date);
+        return toYYYYMMDDUTC(date);
       } catch {
         return null;
       }
@@ -51,11 +51,11 @@ function parseAvailableDates(data) {
   );
 }
 
-function getCalendarGrid(year, month) {
-  const first = new Date(year, month, 1);
-  const last = new Date(year, month + 1, 0);
-  const startWeekday = first.getDay();
-  const daysInMonth = last.getDate();
+function getCalendarGridUTC(year, month) {
+  const first = new Date(Date.UTC(year, month, 1));
+  const last = new Date(Date.UTC(year, month + 1, 0));
+  const startWeekday = first.getUTCDay();
+  const daysInMonth = last.getUTCDate();
   const grid = [];
   const totalCells = 42;
   const startOffset = startWeekday;
@@ -64,14 +64,14 @@ function getCalendarGrid(year, month) {
     let date;
     let isCurrentMonth;
     if (dayNumber < 1) {
-      const prevMonth = new Date(year, month, 0);
-      date = new Date(year, month - 1, prevMonth.getDate() + dayNumber);
+      const prevMonth = new Date(Date.UTC(year, month - 1, 0));
+      date = new Date(Date.UTC(year, month - 1, prevMonth.getUTCDate() + dayNumber));
       isCurrentMonth = false;
     } else if (dayNumber > daysInMonth) {
-      date = new Date(year, month + 1, dayNumber - daysInMonth);
+      date = new Date(Date.UTC(year, month + 1, dayNumber - daysInMonth));
       isCurrentMonth = false;
     } else {
-      date = new Date(year, month, dayNumber);
+      date = new Date(Date.UTC(year, month, dayNumber));
       isCurrentMonth = true;
     }
     grid.push({ date, isCurrentMonth });
@@ -80,21 +80,20 @@ function getCalendarGrid(year, month) {
 }
 
 export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
-  const [viewDate, setViewDate] = useState(selectedDate || new Date());
+  const now = new Date();
+  const viewInitial = selectedDate
+    ? new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1))
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [viewDate, setViewDate] = useState(viewInitial);
   useEffect(() => {
-    if (selectedDate) setViewDate(selectedDate);
+    if (selectedDate)
+      setViewDate(new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1)));
   }, [selectedDate]);
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const today = new Date();
+  const year = viewDate.getUTCFullYear();
+  const month = viewDate.getUTCMonth();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-  const monthParam = useMemo(() => {
-    const d = new Date(year, month, 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  }, [year, month]);
+  const monthParam = useMemo(() => toYYYYMMDDUTC(new Date(Date.UTC(year, month, 1))), [year, month]);
   const { data: availableDatesResponse } = useGetBhaScheduleSlotDateQuery(
     { month: monthParam },
     { skip: !monthParam }
@@ -104,13 +103,13 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
     [availableDatesResponse?.data]
   );
 
-  const grid = useMemo(() => getCalendarGrid(year, month), [year, month]);
+  const grid = useMemo(() => getCalendarGridUTC(year, month), [year, month]);
 
   const goPrev = () => {
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
+    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)));
   };
   const goNext = () => {
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1));
+    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
   };
 
   return (
@@ -148,9 +147,9 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
           </div>
         ))}
         {grid.map(({ date, isCurrentMonth }, i) => {
-          const selected = isSameDay(date, selectedDate);
-          const isToday = isSameDay(date, today);
-          const isAvailable = availableDatesSet.has(toYYYYMMDD(date));
+          const selected = isSameDayUTC(date, selectedDate);
+          const isToday = isSameDayUTC(date, todayUTC);
+          const isAvailable = availableDatesSet.has(toYYYYMMDDUTC(date));
           return (
             <button
               key={i}
@@ -166,7 +165,7 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
                 isAvailable && !selected && isCurrentMonth && "ring-2 ring-teal-400 ring-inset",
               )}
             >
-              {date.getDate()}
+              {date.getUTCDate()}
             </button>
           );
         })}

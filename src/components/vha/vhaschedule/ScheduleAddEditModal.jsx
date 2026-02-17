@@ -17,7 +17,10 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Clock, Check, ChevronLeft, ChevronRight } from "lucide-react";
-import { useUpdateBhaAvailabilityMutation } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
+import {
+  useUpdateBhaAvailabilityMutation,
+  useDoctorSlotsUpdateDeleteMutation,
+} from "@/redux/Apis/bha/scheuleApi/scheduleApi";
 import useToast from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
 
@@ -37,20 +40,20 @@ const MONTH_NAMES = [
   "December",
 ];
 
-function isSameDay(a, b) {
+function isSameDayUTC(a, b) {
   if (!a || !b) return false;
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
   );
 }
 
-function getCalendarGrid(year, month) {
-  const first = new Date(year, month, 1);
-  const last = new Date(year, month + 1, 0);
-  const startWeekday = first.getDay();
-  const daysInMonth = last.getDate();
+function getCalendarGridUTC(year, month) {
+  const first = new Date(Date.UTC(year, month, 1));
+  const last = new Date(Date.UTC(year, month + 1, 0));
+  const startWeekday = first.getUTCDay();
+  const daysInMonth = last.getUTCDate();
   const grid = [];
   const totalCells = 42;
   const startOffset = startWeekday;
@@ -59,14 +62,14 @@ function getCalendarGrid(year, month) {
     let date;
     let isCurrentMonth;
     if (dayNumber < 1) {
-      const prevMonth = new Date(year, month, 0);
-      date = new Date(year, month - 1, prevMonth.getDate() + dayNumber);
+      const prevMonth = new Date(Date.UTC(year, month - 1, 0));
+      date = new Date(Date.UTC(year, month - 1, prevMonth.getUTCDate() + dayNumber));
       isCurrentMonth = false;
     } else if (dayNumber > daysInMonth) {
-      date = new Date(year, month + 1, dayNumber - daysInMonth);
+      date = new Date(Date.UTC(year, month + 1, dayNumber - daysInMonth));
       isCurrentMonth = false;
     } else {
-      date = new Date(year, month, dayNumber);
+      date = new Date(Date.UTC(year, month, dayNumber));
       isCurrentMonth = true;
     }
     grid.push({ date, isCurrentMonth });
@@ -75,21 +78,26 @@ function getCalendarGrid(year, month) {
 }
 
 function CustomCalendar({ selectedDate, onSelect }) {
-  const [viewDate, setViewDate] = useState(selectedDate || new Date());
+  const now = new Date();
+  const viewInitial = selectedDate
+    ? new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1))
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [viewDate, setViewDate] = useState(viewInitial);
   useEffect(() => {
-    if (selectedDate) setViewDate(selectedDate);
+    if (selectedDate)
+      setViewDate(new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1)));
   }, [selectedDate]);
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const today = new Date();
+  const year = viewDate.getUTCFullYear();
+  const month = viewDate.getUTCMonth();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-  const grid = useMemo(() => getCalendarGrid(year, month), [year, month]);
+  const grid = useMemo(() => getCalendarGridUTC(year, month), [year, month]);
 
   const goPrev = () => {
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
+    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)));
   };
   const goNext = () => {
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1));
+    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
   };
 
   return (
@@ -127,8 +135,8 @@ function CustomCalendar({ selectedDate, onSelect }) {
           </div>
         ))}
         {grid.map(({ date, isCurrentMonth }, i) => {
-          const selected = isSameDay(date, selectedDate);
-          const isToday = isSameDay(date, today);
+          const selected = isSameDayUTC(date, selectedDate);
+          const isToday = isSameDayUTC(date, todayUTC);
           return (
             <button
               key={i}
@@ -143,7 +151,7 @@ function CustomCalendar({ selectedDate, onSelect }) {
                 isToday && !selected && "bg-gray-100 text-gray-900",
               )}
             >
-              {date.getDate()}
+              {date.getUTCDate()}
             </button>
           );
         })}
@@ -185,10 +193,10 @@ function getEndTimeForStartTime(startTime) {
 function toDateISO(date) {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date);
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const day = d.getDate();
-  return new Date(y, m, day).toISOString();
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  return new Date(Date.UTC(y, m, day)).toISOString();
 }
 
 const ScheduleAddEditModal = ({
@@ -198,8 +206,11 @@ const ScheduleAddEditModal = ({
   initialSelectedDate = null,
 }) => {
   const toast = useToast();
-  const [updateAvailability, { isLoading }] =
+  const [updateAvailability, { isLoading: isAddLoading }] =
     useUpdateBhaAvailabilityMutation();
+  const [slotsUpdateDelete, { isLoading: isUpdateDeleteLoading }] =
+    useDoctorSlotsUpdateDeleteMutation();
+  const isLoading = isAddLoading || isUpdateDeleteLoading;
 
   const isEdit = Boolean(
     scheduleData && (scheduleData.date ?? scheduleData.startTime),
@@ -210,6 +221,10 @@ const ScheduleAddEditModal = ({
 
   useEffect(() => {
     if (!openModal) return;
+    const toUTCMidnight = (d) => {
+      const x = d instanceof Date ? d : new Date(d);
+      return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()));
+    };
     if (isEdit && scheduleData) {
       const date =
         scheduleData.date instanceof Date
@@ -217,11 +232,12 @@ const ScheduleAddEditModal = ({
           : scheduleData.date
             ? new Date(scheduleData.date)
             : new Date();
-      setSelectedDate(date);
+      setSelectedDate(toUTCMidnight(date));
       setStartTime(scheduleData.startTime ?? "");
       setEndTime(scheduleData.endTime ?? "");
     } else {
-      setSelectedDate(initialSelectedDate ? new Date(initialSelectedDate) : new Date());
+      const initial = initialSelectedDate ? new Date(initialSelectedDate) : new Date();
+      setSelectedDate(toUTCMidnight(initial));
       setStartTime("");
       setEndTime("");
     }
@@ -232,27 +248,37 @@ const ScheduleAddEditModal = ({
       toast.error("Please select start time and end time");
       return;
     }
-    if (startTime >= endTime) {
+    const startIndex = TIME_OPTIONS.indexOf(startTime);
+    const endIndex = TIME_OPTIONS.indexOf(endTime);
+    if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
       toast.error("End time must be after start time");
       return;
     }
 
-    const payload = {
-      date: toDateISO(selectedDate),
-      startTime,
-      endTime,
-    };
-
     try {
-      await updateAvailability(payload).unwrap();
-      toast.success(
-        isEdit
-          ? "Schedule updated successfully"
-          : "Schedule added successfully",
-      );
+      if (isEdit && scheduleData?.id) {
+        await slotsUpdateDelete({
+          action: "update",
+          id: scheduleData.id,
+          startTime,
+          endTime,
+        }).unwrap();
+        toast.success("Schedule updated successfully");
+      } else {
+        const payload = {
+          date: toDateISO(selectedDate),
+          startTime,
+          endTime,
+        };
+        await updateAvailability(payload).unwrap();
+        toast.success("Schedule added successfully");
+      }
       setOpenModal(false);
     } catch (error) {
-      toast.error(error?.data?.message || "Failed to update availability");
+      toast.error(
+        error?.data?.message ||
+          (isEdit ? "Failed to update schedule" : "Failed to update availability")
+      );
     }
   };
 
