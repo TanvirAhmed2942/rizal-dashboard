@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
@@ -19,13 +19,17 @@ import CommonuserModal from "@/components/common/commonusermodal/CommonuserModal
 import { Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import formatDate from "@/utils/FormatDate/formatDate";
-import { useBlockUserMutation } from "@/redux/Apis/admin/usermanagementApi/usermanagementApi";
+import {
+  useBlockUserMutation,
+  useDeleteUserMutation,
+} from "@/redux/Apis/admin/usermanagementApi/usermanagementApi";
 import useToast from "@/hooks/useToast";
 export function ClinetStatusOverview({ userInfoData }) {
   const router = useRouter();
   const toast = useToast();
   const [openModal, setOpenModal] = useState(false);
   const [blockUser, { isLoading: isBlocking }] = useBlockUserMutation();
+  const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
   const [selectedClient, setSelectedClient] = useState(null);
   const [blockingUserId, setBlockingUserId] = useState(null);
 
@@ -55,8 +59,8 @@ export function ClinetStatusOverview({ userInfoData }) {
             : client.status === true;
         toast.success(
           isCurrentlyActive
-            ? "User blocked successfully"
-            : "User unblocked successfully",
+            ? "User deactivated successfully"
+            : "User activated successfully",
         );
       } else {
         toast.error(response?.message || "Failed to update user status");
@@ -71,6 +75,29 @@ export function ClinetStatusOverview({ userInfoData }) {
       setBlockingUserId(null);
     }
   };
+  const handleDeleteUser = useCallback(
+    async (client) => {
+      const userId = client._id || client.id;
+      try {
+        const response = await deleteUser({ id: userId }).unwrap();
+        if (response?.success) {
+          toast.success("User deleted successfully");
+        } else {
+          const errorMessage =
+            response?.data?.message ||
+            response?.message ||
+            "Failed to delete user";
+          toast.error(errorMessage);
+        }
+      } catch (error) {
+        const errorMessage =
+          error?.data?.message || error?.message || "Failed to delete user";
+        toast.error(errorMessage);
+        console.error("Delete user error:", error);
+      }
+    },
+    [deleteUser, toast],
+  );
   return (
     <>
       <ScrollArea className="w-full rounded-md border whitespace-nowrap">
@@ -190,6 +217,14 @@ export function ClinetStatusOverview({ userInfoData }) {
                         </Button>
                       );
                     })()}
+                    <Button
+                      variant="outline"
+                      className="border border-red-400 h-8 text-red-500"
+                      onClick={() => handleDeleteUser(data)}
+                      disabled={isDeleting}
+                    >
+                      Delete
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

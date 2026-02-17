@@ -11,11 +11,15 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader } from "lucide-react";
+import { Loader, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBlockAdminMutation } from "@/redux/Apis/admin/adminmanagementApi/adminmanagementApi";
+import {
+  useBlockAdminMutation,
+  useDeleteAdminMutation,
+} from "@/redux/Apis/admin/adminmanagementApi/adminmanagementApi";
 import useToast from "@/hooks/useToast";
 import { TbLockSquareRounded } from "react-icons/tb";
+import DeleteConfirmationModal from "@/components/common/deleteconfirmation/deleteConfirmationModal";
 const columns = [
   { key: "name", label: "Name" },
   { key: "email", label: "Email" },
@@ -23,7 +27,7 @@ const columns = [
   { key: "role", label: "Role" },
   { key: "joinedOn", label: "Joined On" },
   { key: "status", label: "Status" },
-  { key: "actions", label: "" },
+  { key: "actions", label: "Actions" },
 ];
 
 function formatDate(value) {
@@ -54,7 +58,21 @@ function AdminManagementTable({ admins, paginationMeta, isLoading }) {
   }));
 
   const [blockAdmin, { isLoading: isBlockingAdmin }] = useBlockAdminMutation();
+  const [deleteAdmin, { isLoading: isDeletingAdmin }] =
+    useDeleteAdminMutation();
   const [blockingAdminId, setBlockingAdminId] = useState(null);
+  const [adminToDelete, setAdminToDelete] = useState(null);
+
+  const handleConfirmDelete = async () => {
+    if (!adminToDelete?.id) return;
+    try {
+      await deleteAdmin({ id: adminToDelete.id }).unwrap();
+      success("Admin deleted successfully");
+      setAdminToDelete(null);
+    } catch (err) {
+      error(err?.data?.message || err?.message || "Failed to delete admin");
+    }
+  };
 
   const handleBlockAdmin = async (id, isActive) => {
     setBlockingAdminId(id);
@@ -62,8 +80,8 @@ function AdminManagementTable({ admins, paginationMeta, isLoading }) {
       await blockAdmin({ id }).unwrap();
       success(
         !isActive
-          ? "Admin unblocked successfully"
-          : "Admin blocked successfully"
+          ? "Admin deactivated successfully"
+          : "Admin activated successfully",
       );
     } catch (err) {
       error(err?.data?.message || err?.message || "Error blocking admin");
@@ -81,7 +99,12 @@ function AdminManagementTable({ admins, paginationMeta, isLoading }) {
         <TableHeader>
           <TableRow>
             {columns.map((col) => (
-              <TableHead key={col.key}>{col.label}</TableHead>
+              <TableHead
+                className={col.key === "actions" ? "text-right" : "text-left"}
+                key={col.key}
+              >
+                {col.label}
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
@@ -109,40 +132,61 @@ function AdminManagementTable({ admins, paginationMeta, isLoading }) {
                     className={cn(
                       admin.isActive === false
                         ? "bg-red-500 text-white hover:bg-red-500/80"
-                        : "bg-green-500 text-white hover:bg-green-500/80"
+                        : "bg-green-500 text-white hover:bg-green-500/80",
                     )}
                   >
                     {admin.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleBlockAdmin(admin.id, admin.isActive)}
-                    disabled={isThisRowBlocking(admin.id)}
-                    aria-label={`Block ${admin.fullName}`}
-                  >
-                    {isThisRowBlocking(admin.id) ? (
-                      <Loader
-                        className={cn(
-                          "size-6 animate-spin",
-                          admin.isActive ? "text-green-500" : "text-red-500"
-                        )}
-                      />
-                    ) : !admin.isActive ? (
-                      <TbLockSquareRounded className="size-6 text-green-500" />
-                    ) : (
-                      <TbLockSquareRounded className="size-6 text-red-500" />
-                    )}
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setAdminToDelete(admin)}
+                      disabled={isDeletingAdmin}
+                      aria-label={`Delete ${admin.fullName}`}
+                    >
+                      <Trash2 className="size-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleBlockAdmin(admin.id, admin.isActive)}
+                      disabled={isThisRowBlocking(admin.id)}
+                      aria-label={`Block ${admin.fullName}`}
+                    >
+                      {isThisRowBlocking(admin.id) ? (
+                        <Loader
+                          className={cn(
+                            "size-6 animate-spin",
+                            admin.isActive ? "text-green-500" : "text-red-500",
+                          )}
+                        />
+                      ) : !admin.isActive ? (
+                        <TbLockSquareRounded className="size-6 text-green-500" />
+                      ) : (
+                        <TbLockSquareRounded className="size-6 text-red-500" />
+                      )}
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
+      <DeleteConfirmationModal
+        openModal={!!adminToDelete}
+        setOpenModal={(open) => !open && setAdminToDelete(null)}
+        title="Delete Admin"
+        body={`Are you sure you want to delete "${adminToDelete?.fullName ?? "this admin"}"? This action cannot be undone.`}
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeletingAdmin}
+        confirmText="Delete"
+      />
     </div>
   );
 }

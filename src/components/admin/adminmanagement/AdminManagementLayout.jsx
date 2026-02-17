@@ -22,7 +22,6 @@ function AdminManagementLayout() {
   const { data: adminManagementData, isLoading: isAdminManagementLoading } =
     useGetAdminManagementDataQueryQuery({ page: 1, limit: 10 });
   const admins = adminManagementData?.data || [];
-
   const handleAddAdmin = async (data) => {
     try {
       await createAdmin(data).unwrap();

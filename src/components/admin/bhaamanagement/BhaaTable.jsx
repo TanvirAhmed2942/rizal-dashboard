@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Table,
   TableBody,
@@ -16,7 +16,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader } from "lucide-react";
 import formatDate from "@/utils/FormatDate/formatDate";
 import { getImageUrl } from "@/utils/getImageUrl";
-import { useBlockBhaaMutation } from "@/redux/Apis/admin/bhaamanagementApi/bhaamanagementApi";
+import {
+  useBlockBhaaMutation,
+  useDeleteBhaaMutation,
+} from "@/redux/Apis/admin/bhaamanagementApi/bhaamanagementApi";
 import useToast from "@/hooks/useToast";
 import CommonuserModal from "@/components/common/commonusermodal/CommonuserModal";
 import { ClientDetailsModal } from "../dashboard/ClinetStatusOverview";
@@ -32,6 +35,7 @@ function BhaaTable({
 }) {
   const toast = useToast();
   const [blockBhaa] = useBlockBhaaMutation();
+  const [deleteBhaa, { isLoading: isDeleteLoading }] = useDeleteBhaaMutation();
   const [blockingUserId, setBlockingUserId] = useState(null);
   const [openModal, setOpenModal] = useState(false);
   const [selectedBhaa, setSelectedBhaa] = useState(null);
@@ -64,8 +68,8 @@ function BhaaTable({
         const isCurrentlyActive = user.status === true;
         toast.success(
           isCurrentlyActive
-            ? "BHAA blocked successfully"
-            : "BHAA unblocked successfully",
+            ? "BHAA deactivated successfully"
+            : "BHAA activated successfully",
         );
       } else {
         toast.error(response?.message || "Failed to update BHAA status");
@@ -80,6 +84,24 @@ function BhaaTable({
       setBlockingUserId(null);
     }
   };
+
+  const handleDeleteBhaa = useCallback(
+    async (id) => {
+      try {
+        await deleteBhaa({ id }).unwrap();
+        toast.success("BHAA deleted successfully");
+        setOpenModal(false);
+      } catch (error) {
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          "An error occurred while deleting BHAA. Please try again.";
+        toast.error(errorMessage);
+        console.error("Delete BHAA error:", error);
+      }
+    },
+    [deleteBhaa, toast],
+  );
 
   const renderPaginationButtons = () => {
     const { totalPage } = paginationMeta;
@@ -238,7 +260,7 @@ function BhaaTable({
                             : "bg-red-500/50 text-white"
                         } px-2 py-1 rounded-full text-center font-medium text-xs inline-block w-20`}
                       >
-                        {isActive ? "Active" : "Blocked"}
+                        {isActive ? "Active" : "Inactive"}
                       </p>
                     </TableCell>
 
@@ -267,6 +289,18 @@ function BhaaTable({
                             "Deactivate"
                           ) : (
                             "Activate"
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border border-red-400 h-8 text-red-500"
+                          onClick={() => handleDeleteBhaa(data.id)}
+                          disabled={isDeleteLoading}
+                        >
+                          {isDeleteLoading ? (
+                            <Loader className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Delete"
                           )}
                         </Button>
                       </div>

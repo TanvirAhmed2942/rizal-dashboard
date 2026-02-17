@@ -51,8 +51,19 @@ export const bhaamanagementApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["BhaaManagement", "Dashboard"],
     }),
+    deleteBhaa: builder.mutation({
+      query: ({ id }) => ({
+        url: `users/delete-account-by-admin/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["BhaaManagement", "Dashboard"],
+    }),
   }),
 });
 
-export const { useGetBhaaManagementDataQueryQuery, useBlockBhaaMutation, useCreateBhaaMutation } =
-  bhaamanagementApi;
+export const {
+  useGetBhaaManagementDataQueryQuery,
+  useBlockBhaaMutation,
+  useCreateBhaaMutation,
+  useDeleteBhaaMutation,
+} = bhaamanagementApi;

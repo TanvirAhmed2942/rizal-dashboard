@@ -51,6 +51,13 @@ export const adminmanagementApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["AdminManagement", "Dashboard"],
     }),
+    deleteAdmin: builder.mutation({
+      query: ({ id }) => ({
+        url: `/users/delete-account-by-admin/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["AdminManagement", "Dashboard"],
+    }),
   }),
 });
 
@@ -58,4 +65,5 @@ export const {
   useGetAdminManagementDataQueryQuery,
   useBlockAdminMutation,
   useCreateAdminMutation,
+  useDeleteAdminMutation,
 } = adminmanagementApi;

@@ -67,7 +67,7 @@ function BhaaManagementLayout() {
       </div>
       <SearchFilterButton
         showAddButton={false}
-        selectOptions={["All Status", "Active", "Blocked"]}
+        selectOptions={["All Status", "Active", "Inactive"]}
         placeholder="Search BHAA By Name or Email"
         searchText={searchText}
         setSearchText={handleSearch}

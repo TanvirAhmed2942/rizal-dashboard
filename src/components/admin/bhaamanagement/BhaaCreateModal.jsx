@@ -70,7 +70,7 @@ const BhaaCreateModal = React.memo(function BhaaCreateModal({
         console.error("Create BHAA error:", error);
       }
     },
-    [createBhaa, form, setOpenModal, toast]
+    [createBhaa, form, setOpenModal, toast],
   );
 
   const handleClose = useCallback(() => {
@@ -149,9 +149,9 @@ const BhaaCreateModal = React.memo(function BhaaCreateModal({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading} >
+              <Button type="submit" disabled={isLoading}>
                 {isLoading ? "Creating..." : "Create"}
-                {isLoading &&  <Loader className="w-4 h-4 animate-spin ml-2" />}
+                {isLoading && <Loader className="w-4 h-4 animate-spin ml-2" />}
               </Button>
             </DialogFooter>
           </form>

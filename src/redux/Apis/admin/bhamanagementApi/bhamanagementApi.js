@@ -65,6 +65,14 @@ export const bhaManagementApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["BhaManagement", "Dashboard"],
     }),
+
+    deleteBha: builder.mutation({
+      query: ({ id }) => ({
+        url: `users/delete-account-by-admin/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["BhaManagement", "Dashboard"],
+    }),
     reassignBha: builder.mutation({
       query: (body) => ({
         url: `/bha-bhaa-reassign/reassign-by-admin`,
@@ -82,4 +90,5 @@ export const {
   useBlockBhaMutation,
   useCreateBhaMutation,
   useReassignBhaMutation,
+  useDeleteBhaMutation,
 } = bhaManagementApi;

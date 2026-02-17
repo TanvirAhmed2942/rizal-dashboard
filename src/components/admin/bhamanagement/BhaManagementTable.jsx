@@ -16,13 +16,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader } from "lucide-react";
 import formatDate from "@/utils/FormatDate/formatDate";
 import { getImageUrl } from "@/utils/getImageUrl";
-import { useBlockBhaMutation } from "@/redux/Apis/admin/bhamanagementApi/bhamanagementApi";
+import {
+  useBlockBhaMutation,
+  useDeleteBhaMutation,
+} from "@/redux/Apis/admin/bhamanagementApi/bhamanagementApi";
 import useToast from "@/hooks/useToast";
 import CommonuserModal from "@/components/common/commonusermodal/CommonuserModal";
 import { ClientDetailsModal } from "../dashboard/ClinetStatusOverview";
 import { GrGroup } from "react-icons/gr";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import BhaClientsSheetContent from "./BhaClientsSheetContent";
+import { useCallback } from "react";
 function BhaManagementTable({
   bhaInfoData = [],
   isLoading = false,
@@ -32,6 +36,7 @@ function BhaManagementTable({
 }) {
   const toast = useToast();
   const [blockBha] = useBlockBhaMutation();
+  const [deleteBha, { isLoading: isDeleteLoading }] = useDeleteBhaMutation();
   const [blockingUserId, setBlockingUserId] = useState(null);
   const [openModal, setOpenModal] = useState(false);
   const [selectedBha, setSelectedBha] = useState(null);
@@ -65,8 +70,8 @@ function BhaManagementTable({
         const isCurrentlyActive = user.status === true;
         toast.success(
           isCurrentlyActive
-            ? "BHA blocked successfully"
-            : "BHA unblocked successfully",
+            ? "BHA deactivated successfully"
+            : "BHA activated successfully",
         );
       } else {
         toast.error(response?.message || "Failed to update BHA status");
@@ -79,6 +84,24 @@ function BhaManagementTable({
       setBlockingUserId(null);
     }
   };
+
+  const handleDeleteBha = useCallback(
+    async (id) => {
+      try {
+        await deleteBha({ id }).unwrap();
+        toast.success("BHA deleted successfully");
+        setOpenModal(false);
+      } catch (error) {
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          "An error occurred while deleting BHA. Please try again.";
+        toast.error(errorMessage);
+        console.error("Delete BHA error:", error);
+      }
+    },
+    [deleteBha, toast],
+  );
 
   const renderPaginationButtons = () => {
     const { totalPage } = paginationMeta;
@@ -238,7 +261,7 @@ function BhaManagementTable({
                             : "bg-red-500/50 text-white"
                         } px-2 py-1 rounded-full text-center font-medium text-xs inline-block w-20`}
                       >
-                        {isActive ? "Active" : "Blocked"}
+                        {isActive ? "Active" : "Inactive"}
                       </p>
                     </TableCell>
                     <TableCell className="w-1/6">
@@ -278,6 +301,18 @@ function BhaManagementTable({
                             "Deactivate"
                           ) : (
                             "Activate"
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border border-red-400 h-8 text-red-500"
+                          onClick={() => handleDeleteBha(data.id)}
+                          disabled={isDeleteLoading}
+                        >
+                          {isDeleteLoading ? (
+                            <Loader className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Delete"
                           )}
                         </Button>
                       </div>

@@ -16,9 +16,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import formatDate from "@/utils/FormatDate/formatDate";
 import CommonuserModal from "@/components/common/commonusermodal/CommonuserModal";
 import { ClientDetailsModal } from "../dashboard/ClinetStatusOverview";
-import { useBlockUserMutation } from "@/redux/Apis/admin/usermanagementApi/usermanagementApi";
+import {
+  useBlockUserMutation,
+  useDeleteUserMutation,
+} from "@/redux/Apis/admin/usermanagementApi/usermanagementApi";
 import useToast from "@/hooks/useToast";
 import { Loader } from "lucide-react";
+import { useCallback } from "react";
 // import Loader from "@/components/common/loader/Loader";
 
 function ClientManagementTable({
@@ -30,6 +34,7 @@ function ClientManagementTable({
 }) {
   const toast = useToast();
   const [blockUser] = useBlockUserMutation();
+  const [deleteUser, { isLoading: isDeleteLoading }] = useDeleteUserMutation();
   const [blockingUserId, setBlockingUserId] = useState(null);
 
   const getInitials = (name) => {
@@ -83,6 +88,24 @@ function ClientManagementTable({
       setBlockingUserId(null);
     }
   };
+
+  const handleDeleteUser = useCallback(
+    async (id) => {
+      try {
+        await deleteUser({ id }).unwrap();
+        toast.success("User deleted successfully");
+        setOpenModal(false);
+      } catch (error) {
+        const errorMessage =
+          error?.data?.message ||
+          error?.message ||
+          "An error occurred while deleting user. Please try again.";
+        toast.error(errorMessage);
+        console.error("Delete user error:", error);
+      }
+    },
+    [deleteUser, toast],
+  );
 
   const renderPaginationButtons = () => {
     const { totalPage } = paginationMeta;
@@ -290,6 +313,18 @@ function ClientManagementTable({
                             "Deactivate"
                           ) : (
                             "Activate"
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border border-red-400 h-8 text-red-500"
+                          onClick={() => handleDeleteUser(data.id)}
+                          disabled={isDeleteLoading}
+                        >
+                          {isDeleteLoading ? (
+                            <Loader className="w-4 h-4 animate-spin" />
+                          ) : (
+                            "Delete"
                           )}
                         </Button>
                       </div>
