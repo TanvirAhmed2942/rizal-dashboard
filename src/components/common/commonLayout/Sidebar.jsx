@@ -130,7 +130,7 @@ const sidebars = {
     { name: "BHA Schedule", path: "/bha/bha-schedule", icon: LuCalendarDays },
     { name: "Tasks and Goals", path: "/bha/tasks-and-goals", icon: GrTask },
     { name: "Reports", path: "/bha/reports", icon: CgFileDocument },
-    { name: "Messages", path: "/bha/messages", icon: AiOutlineMessage },
+    { name: "Task Messages", path: "/bha/messages", icon: AiOutlineMessage },
     {
       name: "Settings",
       icon: Settings,
@@ -159,7 +159,7 @@ const sidebars = {
     //   path: "/bhaa/task-promts",
     //   icon: LuBotMessageSquare,
     // },
-    { name: "Messages", path: "/bhaa/messages", icon: AiOutlineMessage },
+    { name: "Task Messages", path: "/bhaa/messages", icon: AiOutlineMessage },
     {
       name: "Settings",
       path: "/bhaa/settings",

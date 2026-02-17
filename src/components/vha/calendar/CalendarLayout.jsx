@@ -61,10 +61,10 @@ const CalenderComponent = ({ selectedDate, setSelectedDate }) => {
       mode="single"
       selected={selectedDate}
       onSelect={(date) => date && setSelectedDate(date)}
-      className="rounded-lg border w-auto aspect-square size-190"
+      className="rounded-lg border w-auto aspect-square size-auto"
       classNames={{
         today:
-          "bg-yellow-500 text-accent-foreground rounded-md data-[selected=true]:rounded-none",
+          "bg-gray-200  text-accent-foreground rounded-md data-[selected=true]:rounded-full",
         day_selected: "bg-sky-500 text-white hover:bg-sky-600 focus:bg-sky-600",
       }}
     />
