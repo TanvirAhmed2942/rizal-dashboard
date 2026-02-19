@@ -9,6 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { TbWallpaper } from "react-icons/tb";
 import { CardTitle, CardAction } from "@/components/ui/card";
 import formatDate from "@/utils/FormatDate/formatDate";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 import { Badge } from "@/components/ui/badge";
 
 function TodaySession({ sessions = [], isLoading = false, selectedDate }) {
@@ -81,8 +82,9 @@ function TodaySession({ sessions = [], isLoading = false, selectedDate }) {
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                       <span className="flex items-center gap-1">
-                        <Clock size={14} /> {session.startTime} -{" "}
-                        {session.endTime}
+                        <Clock size={14} />{" "}
+                        {(utcISOToLocalTimeDisplay(session.startTime) || session.startTime) ?? "—"} -{" "}
+                        {(utcISOToLocalTimeDisplay(session.endTime) || session.endTime) ?? "—"}
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar size={14} /> {formatDate(session.bookingDate)}

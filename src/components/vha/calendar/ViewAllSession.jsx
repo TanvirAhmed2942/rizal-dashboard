@@ -8,6 +8,7 @@ import { Clock, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useGetAllSessionDataQuery } from "@/redux/Apis/bha/todaysessionApi/todaysessionApi";
 import formatDate from "@/utils/FormatDate/formatDate";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 import { Badge } from "@/components/ui/badge";
 import SearchFilterButton from "@/components/common/SearchFilterButton";
 
@@ -103,8 +104,9 @@ const ViewAllSession = () => {
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                     <span className="flex items-center gap-1">
-                      <Clock size={14} /> {session.startTime} -{" "}
-                      {session.endTime}
+                      <Clock size={14} />{" "}
+                      {(utcISOToLocalTimeDisplay(session.startTime) || session.startTime) ?? "—"} -{" "}
+                      {(utcISOToLocalTimeDisplay(session.endTime) || session.endTime) ?? "—"}
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar size={14} /> {formatDate(session.bookingDate)}
