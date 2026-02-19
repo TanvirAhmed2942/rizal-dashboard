@@ -9,27 +9,27 @@ export const sessionmanagementApi = baseApi.injectEndpoints({
         limit = 10,
         search = "",
         status = "All Status",
-        date = "",
+        startTime = "",
+        endTime = "",
       } = {}) => {
-        // Build query parameters
         const params = new URLSearchParams({
           page: page.toString(),
           limit: limit.toString(),
         });
 
-        // Add search term if provided
         if (search) {
           params.append("searchTerm", search);
         }
 
-        // Add status filter only if not "All Status"
         if (status && status !== "All Status") {
           params.append("status", status.toLowerCase());
         }
 
-        // Add date filter if provided
-        if (date) {
-          params.append("date", date);
+        if (startTime) {
+          params.append("startTime", startTime);
+        }
+        if (endTime) {
+          params.append("endTime", endTime);
         }
 
         return {

@@ -9,6 +9,7 @@ import RescheduleModal from "./Reschedule/RescheduleModal";
 import { useJoinSessionNowMutation } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
 import VideoContainer from "./JoinSession/VideoContainer";
 import useToast from "@/hooks/useToast";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 
 const ClientDetailsLayout = ({ clientInfo }) => {
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -58,11 +59,14 @@ const ClientProfile = ({ clientInfo }) => {
 };
 
 const Session = ({ clientInfo, onOpenReschedule }) => {
-  const sessionData = {
-    startTime: clientInfo.startTime,
-    endTime: clientInfo.endTime,
-    date: clientInfo.sessionDate,
-  };
+  const sessionData = useMemo(
+    () => ({
+      startTime: (utcISOToLocalTimeDisplay(clientInfo.startTime) || clientInfo.startTime) ?? "",
+      endTime: (utcISOToLocalTimeDisplay(clientInfo.endTime) || clientInfo.endTime) ?? "",
+      date: clientInfo.sessionDate,
+    }),
+    [clientInfo.startTime, clientInfo.endTime, clientInfo.sessionDate],
+  );
   const [joinSessionNow, { isLoading: isJoining }] = useJoinSessionNowMutation();
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [sessionResponseData, setSessionResponseData] = useState(null);
@@ -106,18 +110,24 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
     );
   }, [clientInfo.sessionDateRaw, currentTime]);
 
-  // Check if current time is within session time window
+  // Check if current time is within session time window (supports UTC ISO or "10:00 AM" format)
   const isWithinTimeWindow = useMemo(() => {
     if (!isTodaySession || !clientInfo.startTime || !clientInfo.endTime) {
       return false;
     }
-
-    const startMinutes = timeToMinutes(clientInfo.startTime);
-    const endMinutes = timeToMinutes(clientInfo.endTime);
+    const startStr = clientInfo.startTime;
+    const endStr = clientInfo.endTime;
+    if (typeof startStr === "string" && (startStr.includes("T") || startStr.endsWith("Z"))) {
+      const startMs = new Date(startStr).getTime();
+      const endMs = new Date(endStr).getTime();
+      const nowMs = currentTime.getTime();
+      if (Number.isNaN(startMs) || Number.isNaN(endMs)) return false;
+      return nowMs >= startMs && nowMs <= endMs;
+    }
+    const startMinutes = timeToMinutes(startStr);
+    const endMinutes = timeToMinutes(endStr);
     const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-
     if (startMinutes === null || endMinutes === null) return false;
-
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
   }, [isTodaySession, clientInfo.startTime, clientInfo.endTime, currentTime]);
 

@@ -63,7 +63,9 @@ function getCalendarGridUTC(year, month) {
     let isCurrentMonth;
     if (dayNumber < 1) {
       const prevMonth = new Date(Date.UTC(year, month - 1, 0));
-      date = new Date(Date.UTC(year, month - 1, prevMonth.getUTCDate() + dayNumber));
+      date = new Date(
+        Date.UTC(year, month - 1, prevMonth.getUTCDate() + dayNumber),
+      );
       isCurrentMonth = false;
     } else if (dayNumber > daysInMonth) {
       date = new Date(Date.UTC(year, month + 1, dayNumber - daysInMonth));
@@ -80,24 +82,40 @@ function getCalendarGridUTC(year, month) {
 function CustomCalendar({ selectedDate, onSelect }) {
   const now = new Date();
   const viewInitial = selectedDate
-    ? new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1))
+    ? new Date(
+        Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1),
+      )
     : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const [viewDate, setViewDate] = useState(viewInitial);
   useEffect(() => {
     if (selectedDate)
-      setViewDate(new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1)));
+      setViewDate(
+        new Date(
+          Date.UTC(
+            selectedDate.getUTCFullYear(),
+            selectedDate.getUTCMonth(),
+            1,
+          ),
+        ),
+      );
   }, [selectedDate]);
   const year = viewDate.getUTCFullYear();
   const month = viewDate.getUTCMonth();
-  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const todayUTC = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
 
   const grid = useMemo(() => getCalendarGridUTC(year, month), [year, month]);
 
   const goPrev = () => {
-    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)));
+    setViewDate(
+      (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)),
+    );
   };
   const goNext = () => {
-    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
+    setViewDate(
+      (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)),
+    );
   };
 
   return (
@@ -137,11 +155,13 @@ function CustomCalendar({ selectedDate, onSelect }) {
         {grid.map(({ date, isCurrentMonth }, i) => {
           const selected = isSameDayUTC(date, selectedDate);
           const isToday = isSameDayUTC(date, todayUTC);
+          const isPast = date.getTime() < todayUTC.getTime();
           return (
             <button
               key={i}
               type="button"
-              onClick={() => onSelect(date)}
+              onClick={() => !isPast && onSelect(date)}
+              disabled={isPast}
               className={cn(
                 "aspect-square flex items-center justify-center text-sm rounded-full transition-colors",
                 !isCurrentMonth && "text-gray-400",
@@ -149,6 +169,7 @@ function CustomCalendar({ selectedDate, onSelect }) {
                 selected && "bg-teal-500 text-white hover:bg-teal-600",
                 !selected && isCurrentMonth && "hover:bg-gray-100",
                 isToday && !selected && "bg-gray-100 text-gray-900",
+                isPast && "opacity-45 cursor-not-allowed hover:bg-transparent",
               )}
             >
               {date.getUTCDate()}
@@ -190,13 +211,46 @@ function getEndTimeForStartTime(startTime) {
   return TIME_OPTIONS[endIdx];
 }
 
-function toDateISO(date) {
-  if (!date) return "";
+/**
+ * User selects time in LOCAL format (e.g. "02:00 PM" in their timezone).
+ * We interpret that as "selected calendar day at this local time" and convert to UTC ISO for the API.
+ * Works for users in any timezone.
+ */
+function displayTimeToUTCISO(displayTime, date) {
+  if (!displayTime || typeof displayTime !== "string" || !date) return "";
+  const match = displayTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return "";
+  let hour = parseInt(match[1], 10);
+  const min = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  if (ampm === "PM" && hour !== 12) hour += 12;
+  if (ampm === "AM" && hour === 12) hour = 0;
   const d = date instanceof Date ? date : new Date(date);
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth();
   const day = d.getUTCDate();
-  return new Date(Date.UTC(y, m, day)).toISOString();
+  const localDate = new Date(y, m, day, hour, min, 0, 0);
+  return localDate.toISOString();
+}
+
+/**
+ * API returns UTC ISO (e.g. "2026-02-18T05:00:00.000Z").
+ * Convert to user's LOCAL time and format as "02:00 PM" for the dropdown.
+ * Works for users in any timezone.
+ */
+function utcTimeStringToDisplay(utcTime) {
+  if (!utcTime || typeof utcTime !== "string") return "";
+  const parsed = new Date(utcTime.trim());
+  if (Number.isNaN(parsed.getTime())) return "";
+  const hour24 = parsed.getHours();
+  const min = parsed.getMinutes();
+  const ampm = hour24 >= 12 ? "PM" : "AM";
+  let hour12 = hour24 % 12;
+  if (hour12 === 0) hour12 = 12;
+  const hStr = String(hour12).padStart(2, "0");
+  const mStr = String(min).padStart(2, "0");
+  const display = `${hStr}:${mStr} ${ampm}`;
+  return TIME_OPTIONS.includes(display) ? display : "";
 }
 
 const ScheduleAddEditModal = ({
@@ -223,7 +277,9 @@ const ScheduleAddEditModal = ({
     if (!openModal) return;
     const toUTCMidnight = (d) => {
       const x = d instanceof Date ? d : new Date(d);
-      return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()));
+      return new Date(
+        Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()),
+      );
     };
     if (isEdit && scheduleData) {
       const date =
@@ -233,10 +289,20 @@ const ScheduleAddEditModal = ({
             ? new Date(scheduleData.date)
             : new Date();
       setSelectedDate(toUTCMidnight(date));
-      setStartTime(scheduleData.startTime ?? "");
-      setEndTime(scheduleData.endTime ?? "");
+      setStartTime(
+        (utcTimeStringToDisplay(scheduleData.startTime) ||
+          scheduleData.startTime) ??
+          "",
+      );
+      setEndTime(
+        (utcTimeStringToDisplay(scheduleData.endTime) ||
+          scheduleData.endTime) ??
+          "",
+      );
     } else {
-      const initial = initialSelectedDate ? new Date(initialSelectedDate) : new Date();
+      const initial = initialSelectedDate
+        ? new Date(initialSelectedDate)
+        : new Date();
       setSelectedDate(toUTCMidnight(initial));
       setStartTime("");
       setEndTime("");
@@ -255,20 +321,22 @@ const ScheduleAddEditModal = ({
       return;
     }
 
+    const startTimeUTC = displayTimeToUTCISO(startTime, selectedDate);
+    const endTimeUTC = displayTimeToUTCISO(endTime, selectedDate);
+
     try {
       if (isEdit && scheduleData?.id) {
         await slotsUpdateDelete({
           action: "update",
           id: scheduleData.id,
-          startTime,
-          endTime,
+          startTime: startTimeUTC,
+          endTime: endTimeUTC,
         }).unwrap();
         toast.success("Schedule updated successfully");
       } else {
         const payload = {
-          date: toDateISO(selectedDate),
-          startTime,
-          endTime,
+          startTime: startTimeUTC,
+          endTime: endTimeUTC,
         };
         await updateAvailability(payload).unwrap();
         toast.success("Schedule added successfully");
@@ -277,7 +345,9 @@ const ScheduleAddEditModal = ({
     } catch (error) {
       toast.error(
         error?.data?.message ||
-          (isEdit ? "Failed to update schedule" : "Failed to update availability")
+          (isEdit
+            ? "Failed to update schedule"
+            : "Failed to update availability"),
       );
     }
   };
@@ -360,6 +430,7 @@ const ScheduleAddEditModal = ({
           {/* Add / Update button */}
           <div className="flex justify-end">
             <Button
+              type="button"
               onClick={handleSubmit}
               disabled={isLoading}
               className="bg-blue-600 hover:bg-blue-700 text-white rounded-md"

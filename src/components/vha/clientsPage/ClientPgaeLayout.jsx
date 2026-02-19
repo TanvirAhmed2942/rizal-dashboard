@@ -2,9 +2,10 @@
 import SearchFilterButton from "@/components/common/SearchFilterButton";
 import SmallPageInfo from "@/components/common/SmallPageInfo";
 import { ClientTaskTable } from "./ClientTaskTable";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useGetSessionManagementDataQuery } from "@/redux/Apis/bha/sessionmanagementApi/sessionmanagementApi";
 import formatDate from "@/utils/FormatDate/formatDate";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 import { getImageUrl } from "@/utils/getImageUrl";
 
 function ClientPgaeLayout() {
@@ -14,13 +15,26 @@ function ClientPgaeLayout() {
   const [selectedDate, setSelectedDate] = useState("");
   const limit = 10;
 
+  const { startTime, endTime } = useMemo(() => {
+    if (!selectedDate || typeof selectedDate !== "string") return { startTime: "", endTime: "" };
+    const d = new Date(selectedDate);
+    if (Number.isNaN(d.getTime())) return { startTime: "", endTime: "" };
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const day = d.getDate();
+    const start = new Date(Date.UTC(y, m, day)).toISOString();
+    const end = new Date(Date.UTC(y, m, day, 23, 59, 59, 999)).toISOString();
+    return { startTime: start, endTime: end };
+  }, [selectedDate]);
+
   const { data: sessionManagementData, isLoading: isSessionManagementLoading } =
     useGetSessionManagementDataQuery({
       page: currentPage,
       limit,
       search: searchText,
       status,
-      date: selectedDate,
+      startTime,
+      endTime,
     });
 
   const sessionManagementInfoData =
@@ -30,8 +44,8 @@ function ClientPgaeLayout() {
       clientEmail: item.userId?.email || "N/A",
       clientProfilePicture: getImageUrl(item.userId?.profile),
       bookingDate: formatDate(item.bookingDate),
-      startTime: item.startTime,
-      endTime: item.endTime,
+      startTime: utcISOToLocalTimeDisplay(item.startTime),
+      endTime: utcISOToLocalTimeDisplay(item.endTime),
       duration: `${item.scheduledDuration} min`,
       status: item.status,
     })) || [];

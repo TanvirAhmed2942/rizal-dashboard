@@ -37,6 +37,13 @@ function toYYYYMMDDUTC(date) {
   return `${y}-${m}-${d}`;
 }
 
+/** Selected calendar date → UTC ISO for API params (e.g. "2026-02-15T00:00:00.000Z") */
+function toDateParamUTC(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+}
+
 function parseAvailableDates(data) {
   if (!Array.isArray(data)) return new Set();
   return new Set(
@@ -93,10 +100,13 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
   const month = viewDate.getUTCMonth();
   const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-  const monthParam = useMemo(() => toYYYYMMDDUTC(new Date(Date.UTC(year, month, 1))), [year, month]);
+  const dateParamUTC = useMemo(
+    () => toDateParamUTC(new Date(Date.UTC(year, month, 1))),
+    [year, month]
+  );
   const { data: availableDatesResponse } = useGetBhaScheduleSlotDateQuery(
-    { month: monthParam },
-    { skip: !monthParam }
+    { date: dateParamUTC },
+    { skip: !dateParamUTC }
   );
   const availableDatesSet = useMemo(
     () => parseAvailableDates(availableDatesResponse?.data),

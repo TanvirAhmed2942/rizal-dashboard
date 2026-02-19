@@ -8,12 +8,14 @@ const DAY_NAMES = [
   "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
 
+/** Format selected calendar date (UTC day) as DD-MM-YYYY for display */
 function formatDateDDMMYYYY(date) {
   if (!date) return "";
-  const d = date.getUTCDate();
-  const m = date.getUTCMonth() + 1;
-  const y = date.getUTCFullYear();
-  return `${String(d).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
+  const d = date instanceof Date ? date : new Date(date);
+  const day = d.getUTCDate();
+  const m = d.getUTCMonth() + 1;
+  const y = d.getUTCFullYear();
+  return `${String(day).padStart(2, "0")}-${String(m).padStart(2, "0")}-${y}`;
 }
 
 export default function DateTimeSelectionCard({

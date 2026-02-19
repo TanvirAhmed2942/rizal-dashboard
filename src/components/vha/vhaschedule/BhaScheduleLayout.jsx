@@ -12,20 +12,26 @@ import {
   useDoctorSlotsUpdateDeleteMutation,
 } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
 import useToast from "@/hooks/useToast";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 
-function toDateISO(date) {
+/** Selected date (UTC day) → start of day in UTC ISO (e.g. "2026-02-18T00:00:00.000Z") */
+function toStartTimeUTC(date) {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}T00:00:00.000Z`;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+}
+
+/** Selected date (UTC day) → end of day in UTC ISO (e.g. "2026-02-18T23:59:59.999Z") */
+function toEndTimeUTC(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999)).toISOString();
 }
 
 function formatSlot(slot) {
   if (!slot || typeof slot !== "object") return "";
-  const start = slot.startTime ?? "";
-  const end = slot.endTime ?? "";
+  const start = (utcISOToLocalTimeDisplay(slot.startTime) || slot.startTime) ?? "";
+  const end = (utcISOToLocalTimeDisplay(slot.endTime) || slot.endTime) ?? "";
   return start && end ? `${start} - ${end}` : "";
 }
 
@@ -40,10 +46,11 @@ function BhaScheduleLayout() {
   const [slotsUpdateDelete, { isLoading: isSlotsActionLoading }] =
     useDoctorSlotsUpdateDeleteMutation();
 
-  const dateParam = useMemo(() => toDateISO(selectedDate), [selectedDate]);
+  const startTimeParam = useMemo(() => toStartTimeUTC(selectedDate), [selectedDate]);
+  const endTimeParam = useMemo(() => toEndTimeUTC(selectedDate), [selectedDate]);
   const { data: slotsResponse, error: slotsError } = useGetBhaDoctorAvailableSlotsQuery(
-    { date: dateParam },
-    { skip: !dateParam },
+    { startTime: startTimeParam, endTime: endTimeParam },
+    { skip: !startTimeParam || !endTimeParam },
   );
 
   const dateNotFound =
@@ -55,8 +62,14 @@ function BhaScheduleLayout() {
   const bookingSlotsRaw = dateNotFound ? [] : (slotsResponse?.data?.bookingSlots ?? []);
 
   const slotId = slotData?._id ?? null;
-  const startTime = slotData?.startTime ?? "";
-  const endTime = slotData?.endTime ?? "";
+  const startTimeDisplay = useMemo(
+    () => (utcISOToLocalTimeDisplay(slotData?.startTime) || slotData?.startTime) ?? "",
+    [slotData?.startTime],
+  );
+  const endTimeDisplay = useMemo(
+    () => (utcISOToLocalTimeDisplay(slotData?.endTime) || slotData?.endTime) ?? "",
+    [slotData?.endTime],
+  );
   const bookedSlots = useMemo(
     () => bookingSlotsRaw.map(formatSlot).filter(Boolean),
     [bookingSlotsRaw],
@@ -75,11 +88,11 @@ function BhaScheduleLayout() {
     setEditingSchedule({
       id: slotId,
       date: selectedDate,
-      startTime,
-      endTime,
+      startTime: slotData?.startTime ?? "",
+      endTime: slotData?.endTime ?? "",
     });
     setIsModalOpen(true);
-  }, [selectedDate, startTime, endTime, slotId]);
+  }, [selectedDate, slotId, slotData?.startTime, slotData?.endTime]);
 
   const handleDeleteCard = useCallback(async () => {
     if (!slotId) return;
@@ -131,8 +144,8 @@ function BhaScheduleLayout() {
       {/* 2. Date & Time Selection Card */}
       <DateTimeSelectionCard
         selectedDate={selectedDate}
-        startTime={startTime}
-        endTime={endTime}
+        startTime={startTimeDisplay}
+        endTime={endTimeDisplay}
         slotId={slotId}
         onEdit={handleEditCard}
         onDelete={handleDeleteCard}

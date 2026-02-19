@@ -9,24 +9,33 @@ import { useGetTodaysSessionDataQuery } from "@/redux/Apis/bha/todaysessionApi/t
 function CalendarLayout() {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Format date to ISO string (date only, with T00:00:00.000Z) for API
-  const formatDateForApi = (date) => {
-    if (!date) return new Date().toISOString().split("T")[0] + "T00:00:00.000Z";
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}T00:00:00.000Z`;
-  };
+  // Selected date → day start/end in UTC for API (e.g. 24th → dayStartTime=2026-02-24T00:00:00.000Z, dayEndTime=2026-02-24T23:59:59.999Z)
+  const dayStartTime = React.useMemo(() => {
+    if (!selectedDate) return "";
+    const d = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const day = d.getDate();
+    return new Date(Date.UTC(y, m, day)).toISOString();
+  }, [selectedDate]);
 
-  const formattedDate = formatDateForApi(selectedDate);
+  const dayEndTime = React.useMemo(() => {
+    if (!selectedDate) return "";
+    const d = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const day = d.getDate();
+    return new Date(Date.UTC(y, m, day, 23, 59, 59, 999)).toISOString();
+  }, [selectedDate]);
 
   const {
     data: sessionData,
     isLoading,
     isFetching,
-  } = useGetTodaysSessionDataQuery({
-    date: formattedDate,
-  });
+  } = useGetTodaysSessionDataQuery(
+    { dayStartTime, dayEndTime },
+    { skip: !dayStartTime || !dayEndTime },
+  );
 
   const sessions = sessionData?.data || [];
 

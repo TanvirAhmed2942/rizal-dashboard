@@ -4,9 +4,10 @@ export const todaysessionApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
     getTodaysSessionData: builder.query({
-      query: ({ date }) => ({
-        url: `/doctor-booking/my-booking?date=${date}`,
+      query: ({ dayStartTime, dayEndTime }) => ({
+        url: `/doctor-booking/my-booking`,
         method: "GET",
+        params: { dayStartTime, dayEndTime },
       }),
       providesTags: ["TodaysSession"],
     }),
