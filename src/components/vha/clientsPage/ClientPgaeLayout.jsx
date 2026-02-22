@@ -16,7 +16,8 @@ function ClientPgaeLayout() {
   const limit = 10;
 
   const { startTime, endTime } = useMemo(() => {
-    if (!selectedDate || typeof selectedDate !== "string") return { startTime: "", endTime: "" };
+    if (!selectedDate || typeof selectedDate !== "string")
+      return { startTime: "", endTime: "" };
     const d = new Date(selectedDate);
     if (Number.isNaN(d.getTime())) return { startTime: "", endTime: "" };
     const y = d.getFullYear();
@@ -43,7 +44,9 @@ function ClientPgaeLayout() {
       clientName: item.userId?.fullName || "N/A",
       clientEmail: item.userId?.email || "N/A",
       clientProfilePicture: getImageUrl(item.userId?.profile),
-      bookingDate: item.startTime ? formatDate(item.startTime) : formatDate(item.bookingDate),
+      bookingDate: item.startTime
+        ? formatDate(item.startTime)
+        : formatDate(item.bookingDate),
       startTime: utcISOToLocalTimeDisplay(item.startTime),
       endTime: utcISOToLocalTimeDisplay(item.endTime),
       duration: `${item.scheduledDuration} min`,

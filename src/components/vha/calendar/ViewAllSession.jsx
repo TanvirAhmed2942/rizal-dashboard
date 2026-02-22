@@ -109,7 +109,8 @@ const ViewAllSession = () => {
                       {(utcISOToLocalTimeDisplay(session.endTime) || session.endTime) ?? "—"}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Calendar size={14} /> {formatDate(session.bookingDate)}
+                      <Calendar size={14} />{" "}
+                      {(session.startTime ? formatDate(session.startTime) : formatDate(session.bookingDate)) ?? "—"}
                     </span>
                   </div>
                 </div>

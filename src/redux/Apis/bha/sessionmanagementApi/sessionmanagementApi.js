@@ -26,10 +26,10 @@ export const sessionmanagementApi = baseApi.injectEndpoints({
         }
 
         if (startTime) {
-          params.append("startTime", startTime);
+          params.append("dayStartTime", startTime);
         }
         if (endTime) {
-          params.append("endTime", endTime);
+          params.append("dayEndTime", endTime);
         }
 
         return {
@@ -48,7 +48,7 @@ export const sessionmanagementApi = baseApi.injectEndpoints({
     }),
     getAvialableSlotsForReschedule: builder.query({
       query: ({ date }) => ({
-        url: `/doctor-booking/my-doctor-available-slots?date=${date}`,
+        url: `/doctor-booking/my-doctor-available-date?date=${date}`,
         method: "GET",
       }),
       providesTags: ["SessionManagement"],
@@ -59,8 +59,17 @@ export const sessionmanagementApi = baseApi.injectEndpoints({
         method: "PATCH",
         body: data,
       }),
-      
+
       invalidatesTags: ["SessionManagement"],
+    }),
+
+    getTimeSlotsForReschedule: builder.query({
+      query: ({ startTime, endTime }) => ({
+        url: `/doctor-booking/my-doctor-available-slots`,
+        method: "GET",
+        params: { startTime, endTime },
+      }),
+      providesTags: ["SessionManagement"],
     }),
   }),
 });
@@ -70,4 +79,5 @@ export const {
   useGetSessionManagementDataByIdQuery,
   useGetAvialableSlotsForRescheduleQuery,
   useRescheduleSessionMutation,
+  useGetTimeSlotsForRescheduleQuery,
 } = sessionmanagementApi;

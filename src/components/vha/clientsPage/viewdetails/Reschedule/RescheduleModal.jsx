@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useGetAvialableSlotsForRescheduleQuery,
+  useGetTimeSlotsForRescheduleQuery,
   useRescheduleSessionMutation,
 } from "@/redux/Apis/bha/sessionmanagementApi/sessionmanagementApi";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 
 function RescheduleModal({
   isOpen,
@@ -44,6 +46,7 @@ function RescheduleModal({
     return init < today ? today : init;
   });
   const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [viewMonth, setViewMonth] = useState(() => new Date());
 
   // Keep selected date in sync with parent-provided initialDate
   useEffect(() => {
@@ -56,58 +59,96 @@ function RescheduleModal({
     }
   }, [initialDate, today]);
 
-  // Format date as UTC midnight to match the API requirement
-  const apiDate = useMemo(() => {
-    if (!selectedDate || isNaN(selectedDate)) return "";
-    const utcDate = new Date(
-      Date.UTC(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate()
-      )
-    );
-    return utcDate.toISOString();
+  // First of viewed month in UTC ISO for fetching available dates
+  const firstOfViewMonthISO = useMemo(() => {
+    if (!viewMonth || isNaN(viewMonth)) return "";
+    const y = viewMonth.getFullYear();
+    const m = viewMonth.getMonth();
+    return new Date(Date.UTC(y, m, 1)).toISOString();
+  }, [viewMonth]);
+
+  // Fetch available dates to show on calendar (response: { data: ["2026-02-18T09:00:00.000Z", ...] })
+  const {
+    data: availableDatesData,
+    isFetching: isFetchingDates,
+    isLoading: isLoadingDates,
+    isError: isDatesError,
+    error: datesError,
+    refetch: refetchDates,
+  } = useGetAvialableSlotsForRescheduleQuery(
+    { date: firstOfViewMonthISO },
+    { skip: !isOpen || !firstOfViewMonthISO }
+  );
+
+  // Parse available dates from API into Date[] for calendar modifiers (UTC day → local midnight Date)
+  const availableDatesForCalendar = useMemo(() => {
+    const raw = availableDatesData?.data;
+    if (!Array.isArray(raw) || raw.length === 0) return [];
+    return raw
+      .filter((item) => typeof item === "string")
+      .map((iso) => {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return null;
+        return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      })
+      .filter(Boolean);
+  }, [availableDatesData?.data]);
+
+  // Selected date → start/end of day in UTC for time-slots API
+  const { startTime: dayStartTime, endTime: dayEndTime } = useMemo(() => {
+    if (!selectedDate || isNaN(selectedDate)) return { startTime: "", endTime: "" };
+    const y = selectedDate.getFullYear();
+    const m = selectedDate.getMonth();
+    const d = selectedDate.getDate();
+    const start = new Date(Date.UTC(y, m, d)).toISOString();
+    const end = new Date(Date.UTC(y, m, d, 23, 59, 59, 999)).toISOString();
+    return { startTime: start, endTime: end };
   }, [selectedDate]);
 
   const {
-    data,
+    data: timeSlotsData,
     isFetching,
     isLoading,
     isError,
     error,
     refetch,
-  } = useGetAvialableSlotsForRescheduleQuery(
-    { date: apiDate },
-    { skip: !apiDate }
+  } = useGetTimeSlotsForRescheduleQuery(
+    { startTime: dayStartTime, endTime: dayEndTime },
+    { skip: !isOpen || !dayStartTime || !dayEndTime }
   );
 
-  const slots = useMemo(() => (data?.data && Array.isArray(data.data) ? data.data : []), [data]);
+  // Response: { data: { data: {...}, availableSlots: [...], bookingSlots: [...] } } — use availableSlots for selection
+  const availableSlots = useMemo(
+    () =>
+      Array.isArray(timeSlotsData?.data?.availableSlots)
+        ? timeSlotsData.data.availableSlots
+        : [],
+    [timeSlotsData],
+  );
   const showNoSlots =
-    !isLoading &&
-    !isFetching &&
-    (!apiDate || isError || slots.length === 0);
+    !isLoading && !isFetching && (!dayStartTime || isError || availableSlots.length === 0);
 
   const [rescheduleSession, { isLoading: isSaving }] =
     useRescheduleSessionMutation();
 
   const handleSlotClick = (slot) => {
-    setSelectedSlotId(slot._id);
-    onSlotSelect?.({ date: apiDate, slot });
+    setSelectedSlotId(slot.startTime);
+    onSlotSelect?.({ date: dayStartTime, slot });
   };
 
   const handleConfirm = async () => {
-    const slot = slots.find((s) => s._id === selectedSlotId);
-    if (!slot || !bookingId || !apiDate) return;
+    const slot = availableSlots.find((s) => s.startTime === selectedSlotId);
+    if (!slot || !bookingId || !dayStartTime) return;
     try {
       await rescheduleSession({
         bookingId,
         data: {
-          bookingDate: apiDate,
+          bookingDate: dayStartTime,
           startTime: slot.startTime,
           endTime: slot.endTime,
         },
       }).unwrap();
-      onSlotSelect?.({ date: apiDate, slot });
+      onSlotSelect?.({ date: dayStartTime, slot });
       handleClose();
     } catch (err) {
       console.error("Failed to reschedule", err);
@@ -132,13 +173,18 @@ function RescheduleModal({
               mode="single"
               selected={selectedDate}
               fromDate={today}
+              month={viewMonth}
+              onMonthChange={(month) => month && setViewMonth(month)}
               disabled={(date) => date < today}
               modifiers={{
                 scheduled: scheduledDate ? [scheduledDate] : [],
+                available: availableDatesForCalendar,
               }}
               modifiersClassNames={{
                 scheduled:
                   "border-2 border-blue-500 bg-blue-50 text-blue-900 rounded-md",
+                available:
+                  "ring-2 ring-teal-400 ring-inset bg-teal-50/50 text-teal-900 rounded-md",
               }}
               onSelect={(date) => {
                 if (!date || isNaN(date)) return;
@@ -147,12 +193,11 @@ function RescheduleModal({
                 if (normalized < today) return;
                 setSelectedDate(normalized);
                 setSelectedSlotId(null);
-                // refetch happens automatically via hook when date changes
               }}
               className="mx-auto"
             />
             <div className="mt-3 text-sm text-gray-500 space-y-1">
-              <div>Choose a date from today onward to see available slots.</div>
+              <div>Dates with a teal ring have availability. Choose a date to see slots.</div>
             </div>
           </div>
 
@@ -164,7 +209,7 @@ function RescheduleModal({
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                disabled={isFetching || isLoading || !apiDate}
+                disabled={isFetching || isLoading || !dayStartTime}
               >
                 {isFetching ? "Refreshing..." : "Refresh"}
               </Button>
@@ -184,11 +229,13 @@ function RescheduleModal({
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {slots.map((slot) => {
-                    const isSelected = selectedSlotId === slot._id;
+                  {availableSlots.map((slot) => {
+                    const isSelected = selectedSlotId === slot.startTime;
+                    const startDisplay = utcISOToLocalTimeDisplay(slot.startTime) || slot.startTime;
+                    const endDisplay = utcISOToLocalTimeDisplay(slot.endTime) || slot.endTime;
                     return (
                       <button
-                        key={slot._id}
+                        key={slot.startTime}
                         type="button"
                         onClick={() => handleSlotClick(slot)}
                         className={`w-full text-left border rounded-lg px-3 py-2 transition-colors ${
@@ -198,7 +245,7 @@ function RescheduleModal({
                         }`}
                       >
                         <div className="font-medium text-gray-900">
-                          {slot.startTime} - {slot.endTime}
+                          {startDisplay} – {endDisplay}
                         </div>
                       </button>
                     );

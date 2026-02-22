@@ -10,7 +10,7 @@ import {
 import { IoNotificationsOutline } from "react-icons/io5";
 import { Trash2 } from "lucide-react";
 
-const PrioritySection = () => {
+const PrioritySection = ({ pathname }) => {
   const notifications = [
     {
       subscriberName: "Jordan",

@@ -9,18 +9,30 @@ import React, { useState } from "react";
 import { TbBellRinging2 } from "react-icons/tb";
 import { HiOutlineBell } from "react-icons/hi";
 import { Button } from "@/components/ui/button";
-import { useMarkAsReadMutation, useMarkAllAsReadMutation } from "@/redux/Apis/noticationApi/notificationApi";
+import {
+  useMarkAsReadMutation,
+  useMarkAllAsReadMutation,
+} from "@/redux/Apis/noticationApi/notificationApi";
 import useToast from "@/hooks/useToast";
 import formatTimeAgo from "@/utils/FormatDate/xtimesAgo";
 import { Loader } from "lucide-react";
 
-function AllNotifications({ notifications = [], isLoading = false, meta = {}, page = 1, setPage, userRole }) {
+function AllNotifications({
+  notifications = [],
+  isLoading = false,
+  meta = {},
+  page = 1,
+  setPage,
+  userRole,
+}) {
   const [markAsRead] = useMarkAsReadMutation();
-  const [markAllAsRead, { isLoading: isMarkingAllAsRead }] = useMarkAllAsReadMutation();
+  const [markAllAsRead, { isLoading: isMarkingAllAsRead }] =
+    useMarkAllAsReadMutation();
   const [markingNotificationId, setMarkingNotificationId] = useState(null);
   const toast = useToast();
 
-  console.log("notifications ------->bha", notifications?.result);
+  const rawList = notifications?.result ?? [];
+  const displayList = rawList;
 
   const totalPages = meta?.totalPage || 1;
   const total = meta?.total || 0;
@@ -134,19 +146,26 @@ function AllNotifications({ notifications = [], isLoading = false, meta = {}, pa
           All Notifications
         </CardTitle>
         <CardAction>
-          <Button 
+          <Button
             className=""
             onClick={handleMarkAllAsRead}
-            disabled={isMarkingAllAsRead || notifications?.result?.length === 0}
+            disabled={isMarkingAllAsRead || displayList.length === 0}
           >
-            {isMarkingAllAsRead ? <>Marking...{" "}<Loader className="w-4 h-4 animate-spin text-primary" /></> : "Mark all as read"}
+            {isMarkingAllAsRead ? (
+              <>
+                Marking...{" "}
+                <Loader className="w-4 h-4 animate-spin text-primary" />
+              </>
+            ) : (
+              "Mark all as read"
+            )}
           </Button>
         </CardAction>
       </CardHeader>
       <CardContent className="space-y-2">
-        {notifications?.result?.length > 0 ? (
+        {displayList.length > 0 ? (
           <>
-            {notifications?.result?.map((notification) => (
+            {displayList.map((notification) => (
               <div
                 key={notification?._id}
                 className={`flex items-start md:items-center justify-between gap-2 border bg-white p-2 rounded-lg ${
@@ -156,27 +175,34 @@ function AllNotifications({ notifications = [], isLoading = false, meta = {}, pa
                 <div className="flex items-start gap-2">
                   <HiOutlineBell size={20} className="mt-1" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold">{notification?.message}</p>
+                    <p className="text-sm font-semibold">
+                      {notification?.message}
+                    </p>
                     <p className="text-xs text-gray-500">
                       {formatTimeAgo(notification?.createdAt)}
                     </p>
                   </div>
                 </div>
 
-                {!notification?.isRead && userRole !== "admin" && userRole !== "super_admin" && (
-                  <Button 
-                    variant="outline" 
-                    className="bg-white"
-                    onClick={() => handleMarkAsRead(notification?._id)}
-                    disabled={markingNotificationId === notification?._id}
-                  >
-                    {markingNotificationId === notification?._id ? (
-                      <>Marking...{" "}<Loader className="w-4 h-4 animate-spin text-primary" /></>
-                    ) : (
-                      "Mark as read"
-                    )}
-                  </Button>
-                )}
+                {!notification?.isRead &&
+                  userRole !== "admin" &&
+                  userRole !== "super_admin" && (
+                    <Button
+                      variant="outline"
+                      className="bg-white"
+                      onClick={() => handleMarkAsRead(notification?._id)}
+                      disabled={markingNotificationId === notification?._id}
+                    >
+                      {markingNotificationId === notification?._id ? (
+                        <>
+                          Marking...{" "}
+                          <Loader className="w-4 h-4 animate-spin text-primary" />
+                        </>
+                      ) : (
+                        "Mark as read"
+                      )}
+                    </Button>
+                  )}
               </div>
             ))}
 
@@ -194,7 +220,10 @@ function AllNotifications({ notifications = [], isLoading = false, meta = {}, pa
 
                 {getPageNumbers().map((pageNum, index) =>
                   pageNum === "..." ? (
-                    <span key={`ellipsis-${index}`} className="px-2 text-gray-500">
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="px-2 text-gray-500"
+                    >
                       ...
                     </span>
                   ) : (
@@ -207,7 +236,7 @@ function AllNotifications({ notifications = [], isLoading = false, meta = {}, pa
                     >
                       {pageNum}
                     </Button>
-                  )
+                  ),
                 )}
 
                 <Button

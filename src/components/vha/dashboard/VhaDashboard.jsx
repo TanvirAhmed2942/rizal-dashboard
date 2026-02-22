@@ -4,9 +4,9 @@ import { LuUserRound } from "react-icons/lu";
 import { CardSection } from "../../common/Card";
 import RecentActivity from "./RecentActivity";
 import TodaysSession from "./TodaysSession";
-import PrioritySection from "./PrioritySection";
 import SmallPageInfo from "@/components/common/SmallPageInfo";
 import { useGetBhaDashboardDataQuery } from "@/redux/Apis/bha/dashboard/bhadashboard";
+
 function VhaDashboard() {
   const { data: bhaDashboardData, isLoading } = useGetBhaDashboardDataQuery();
   console.log("bhaDashboardData:", bhaDashboardData?.data);
@@ -61,7 +61,7 @@ function VhaDashboard() {
         recentActivityData={recentActivityData}
         todaysSessionData={todaysSessionData}
       />
-      <PrioritySection />
+      {/* <PrioritySection /> */}
     </div>
   );
 }
