@@ -1,4 +1,5 @@
 "use client";
+import React, { useMemo } from "react";
 import {
   Card,
   CardAction,
@@ -13,16 +14,23 @@ import { TiUser } from "react-icons/ti";
 import formatTimeAgo from "@/utils/FormatDate/xtimesAgo";
 
 function RecentActivity({ recentActivityData }) {
-  const recentActivity =
-    recentActivityData?.map((activity) => ({
+  const recentActivity = useMemo(() => {
+    const list = recentActivityData ?? [];
+    const sorted = [...list].sort((a, b) => {
+      const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return t2 - t1;
+    });
+    return sorted.map((activity) => ({
       title: activity.title,
       user: activity.userId?.fullName,
       timeAgo: formatTimeAgo(activity.createdAt),
       viewLink: `/vha/task/${activity.taskId}`,
       status: activity.status,
-    })) || [];
+    }));
+  }, [recentActivityData]);
   const router = useRouter();
- 
+
   return (
     <Card>
       <CardHeader>
@@ -64,10 +72,10 @@ function RecentActivity({ recentActivityData }) {
                   activity.status.toLowerCase() === "completed"
                     ? "bg-green-500 text-white"
                     : activity.status.toLowerCase() === "pending"
-                    ? "bg-yellow-500 text-white"
-                    : activity.status.toLowerCase() === "overdue"
-                    ? "bg-red-500 text-white"
-                    : "bg-gray-500 text-white"
+                      ? "bg-yellow-500 text-white"
+                      : activity.status.toLowerCase() === "overdue"
+                        ? "bg-red-500 text-white"
+                        : "bg-gray-500 text-white"
                 }`}
               >
                 {activity.status}

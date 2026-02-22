@@ -159,7 +159,7 @@ const CategorySection = ({
             onClick={() => setCurrentPage(i)}
           >
             {i}
-          </Button>
+          </Button>,
         );
       }
     } else {
@@ -176,7 +176,7 @@ const CategorySection = ({
           onClick={() => setCurrentPage(1)}
         >
           1
-        </Button>
+        </Button>,
       );
 
       // Show ellipsis and pages around current page
@@ -184,7 +184,7 @@ const CategorySection = ({
         buttons.push(
           <span key="ellipsis1" className="px-2 text-gray-600">
             ...
-          </span>
+          </span>,
         );
       }
 
@@ -205,7 +205,7 @@ const CategorySection = ({
               onClick={() => setCurrentPage(i)}
             >
               {i}
-            </Button>
+            </Button>,
           );
         }
       }
@@ -214,7 +214,7 @@ const CategorySection = ({
         buttons.push(
           <span key="ellipsis2" className="px-2 text-gray-600">
             ...
-          </span>
+          </span>,
         );
       }
 
@@ -232,7 +232,7 @@ const CategorySection = ({
             onClick={() => setCurrentPage(totalPage)}
           >
             {totalPage}
-          </Button>
+          </Button>,
         );
       }
     }
@@ -291,7 +291,7 @@ const CategorySection = ({
                 disabled={currentPage === paginationMeta.totalPage}
                 onClick={() =>
                   setCurrentPage((prev) =>
-                    Math.min(paginationMeta.totalPage, prev + 1)
+                    Math.min(paginationMeta.totalPage, prev + 1),
                   )
                 }
               >
@@ -305,7 +305,11 @@ const CategorySection = ({
   );
 };
 
+const FALLBACK_IMAGE = "/admin/category/category.png";
+
 const CategoryCard = ({ category, onEditClick, onDeleteClick }) => {
+  const [imgError, setImgError] = useState(false);
+
   const handleEdit = (e) => {
     e.stopPropagation();
     onEditClick(category);
@@ -345,6 +349,8 @@ const CategoryCard = ({ category, onEditClick, onDeleteClick }) => {
     return `${apiBaseUrl}${normalizedPath}`;
   };
 
+  const imageSrc = imgError ? FALLBACK_IMAGE : getImageUrl();
+
   return (
     <div className="bg-gray-100 p-4 rounded-lg shadow-md group hover:shadow-lg transition-shadow relative flex flex-col h-full min-h-[220px]">
       {/* Title row: fixed min-height so all cards align; title and actions in one line */}
@@ -370,14 +376,12 @@ const CategoryCard = ({ category, onEditClick, onDeleteClick }) => {
       {/* Icon area: same height on every card, image centered */}
       <div className="flex-1 flex items-start justify-center w-full py-2 max-h-[7rem] ">
         <Image
-          src={getImageUrl()}
+          src={imageSrc}
           alt={category.name}
           width={80}
           height={80}
           className="w-20 h-20 object-cover object-center rounded-full mx-auto block"
-          onError={(e) => {
-            e.target.src = "/admin/category/cat_1.ico";
-          }}
+          onError={() => setImgError(true)}
         />
       </div>
       <div className="flex items-center justify-center">
