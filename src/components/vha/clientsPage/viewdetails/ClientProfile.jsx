@@ -10,6 +10,7 @@ import { useJoinSessionNowMutation } from "@/redux/Apis/bha/scheuleApi/scheduleA
 import VideoContainer from "./JoinSession/VideoContainer";
 import useToast from "@/hooks/useToast";
 import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
+import formatDate from "@/utils/FormatDate/formatDate";
 
 const ClientDetailsLayout = ({ clientInfo }) => {
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -63,7 +64,7 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
     () => ({
       startTime: (utcISOToLocalTimeDisplay(clientInfo.startTime) || clientInfo.startTime) ?? "",
       endTime: (utcISOToLocalTimeDisplay(clientInfo.endTime) || clientInfo.endTime) ?? "",
-      date: clientInfo.sessionDate,
+      date: clientInfo.startTime ? formatDate(clientInfo.startTime) : (clientInfo.sessionDate ?? ""),
     }),
     [clientInfo.startTime, clientInfo.endTime, clientInfo.sessionDate],
   );
@@ -110,11 +111,9 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
     );
   }, [clientInfo.sessionDateRaw, currentTime]);
 
-  // Check if current time is within session time window (supports UTC ISO or "10:00 AM" format)
+  // Enable Join when current time is between booking startTime and endTime (UTC ISO from API)
   const isWithinTimeWindow = useMemo(() => {
-    if (!isTodaySession || !clientInfo.startTime || !clientInfo.endTime) {
-      return false;
-    }
+    if (!clientInfo.startTime || !clientInfo.endTime) return false;
     const startStr = clientInfo.startTime;
     const endStr = clientInfo.endTime;
     if (typeof startStr === "string" && (startStr.includes("T") || startStr.endsWith("Z"))) {
@@ -129,10 +128,10 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
     const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
     if (startMinutes === null || endMinutes === null) return false;
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-  }, [isTodaySession, clientInfo.startTime, clientInfo.endTime, currentTime]);
+  }, [clientInfo.startTime, clientInfo.endTime, currentTime]);
 
-  // Join button should be enabled only if it's today and within time window
-  const canJoin = isTodaySession && isWithinTimeWindow;
+  // Join button enabled only when current time is between start and end time
+  const canJoin = isWithinTimeWindow;
 
   // Reschedule button should be enabled only if status is "confirmed" or "pending"
   const canReschedule = useMemo(() => {

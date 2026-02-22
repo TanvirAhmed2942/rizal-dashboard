@@ -43,7 +43,7 @@ function ClientPgaeLayout() {
       clientName: item.userId?.fullName || "N/A",
       clientEmail: item.userId?.email || "N/A",
       clientProfilePicture: getImageUrl(item.userId?.profile),
-      bookingDate: formatDate(item.bookingDate),
+      bookingDate: item.startTime ? formatDate(item.startTime) : formatDate(item.bookingDate),
       startTime: utcISOToLocalTimeDisplay(item.startTime),
       endTime: utcISOToLocalTimeDisplay(item.endTime),
       duration: `${item.scheduledDuration} min`,
