@@ -74,11 +74,11 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const toast = useToast();
 
-  // Update current time every minute to check if we're in the time window
+  // Update current time every 10s so Join button enables soon after session window starts
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000); // Update every minute
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -103,7 +103,7 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
     if (!clientInfo.sessionDateRaw) return false;
     const sessionDate = new Date(clientInfo.sessionDateRaw);
     const today = new Date();
-    
+
     return (
       sessionDate.getFullYear() === today.getFullYear() &&
       sessionDate.getMonth() === today.getMonth() &&
@@ -111,16 +111,15 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
     );
   }, [clientInfo.sessionDateRaw, currentTime]);
 
-  // Enable Join when current time is between booking startTime and endTime (UTC ISO from API)
+  // Enable Join when current time is between booking startTime and endTime
   const isWithinTimeWindow = useMemo(() => {
     if (!clientInfo.startTime || !clientInfo.endTime) return false;
-    const startStr = clientInfo.startTime;
-    const endStr = clientInfo.endTime;
-    if (typeof startStr === "string" && (startStr.includes("T") || startStr.endsWith("Z"))) {
-      const startMs = new Date(startStr).getTime();
-      const endMs = new Date(endStr).getTime();
-      const nowMs = currentTime.getTime();
-      if (Number.isNaN(startMs) || Number.isNaN(endMs)) return false;
+    const startStr = String(clientInfo.startTime).trim();
+    const endStr = String(clientInfo.endTime).trim();
+    const startMs = new Date(startStr).getTime();
+    const endMs = new Date(endStr).getTime();
+    const nowMs = currentTime.getTime();
+    if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
       return nowMs >= startMs && nowMs <= endMs;
     }
     const startMinutes = timeToMinutes(startStr);
