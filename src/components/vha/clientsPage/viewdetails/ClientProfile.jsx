@@ -216,6 +216,8 @@ const Session = ({ clientInfo, onOpenReschedule }) => {
         sessionData={sessionResponseData}
         bookingId={clientInfo.bookingId}
         currentUser={currentUser}
+        sessionEndTime={clientInfo.endTime}
+        sessionStartTime={clientInfo.startTime}
       />
     </>
   );
