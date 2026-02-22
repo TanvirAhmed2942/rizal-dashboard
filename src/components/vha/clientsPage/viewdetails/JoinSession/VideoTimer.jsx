@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export default function VideoTimer({ startTime, isExtended }) {
+export default function VideoTimer({ startTime }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (!startTime || isExtended) return;
+    if (!startTime) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -14,7 +14,7 @@ export default function VideoTimer({ startTime, isExtended }) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [startTime, isExtended]);
+  }, [startTime]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);

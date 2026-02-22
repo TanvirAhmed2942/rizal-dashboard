@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAgora } from "./hooks/useAgora";
 import VideoControls from "./VideoControls";
 import VideoTimer from "./VideoTimer";
@@ -11,6 +11,19 @@ import {
   useExtendSessionFiveMinutesMutation,
 } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
 import useToast from "@/hooks/useToast";
+import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+function formatMsToTimeDisplay(ms) {
+  if (ms == null || Number.isNaN(ms)) return "—";
+  const d = new Date(ms);
+  const hour24 = d.getHours();
+  const min = d.getMinutes();
+  const ampm = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 || 12;
+  return `${hour12}:${String(min).padStart(2, "0")} ${ampm}`;
+}
 
 function VideoContainer({
   isOpen,
@@ -18,6 +31,8 @@ function VideoContainer({
   sessionData,
   currentUser,
   bookingId,
+  sessionEndTime,
+  sessionStartTime,
 }) {
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -31,6 +46,22 @@ function VideoContainer({
     useExtendSessionFiveMinutesMutation();
   const [isExtended, setIsExtended] = useState(false);
   const { success, error } = useToast();
+
+  const [effectiveEndTimeMs, setEffectiveEndTimeMs] = useState(null);
+  const prevOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && sessionEndTime) {
+      const ms = new Date(String(sessionEndTime).trim()).getTime();
+      if (!Number.isNaN(ms) && !prevOpenRef.current) {
+        setEffectiveEndTimeMs(ms);
+      }
+      prevOpenRef.current = true;
+    } else {
+      prevOpenRef.current = false;
+    }
+  }, [isOpen, sessionEndTime]);
+
   const {
     isJoined,
     isVideoEnabled,
@@ -95,7 +126,7 @@ function VideoContainer({
     }
   }, [isDragging, dragOffset]);
 
-  const handleEndCall = async () => {
+  const handleEndCall = useCallback(async () => {
     await leaveChannel();
     if (bookingId) {
       try {
@@ -105,7 +136,7 @@ function VideoContainer({
       }
     }
     onClose?.();
-  };
+  }, [leaveChannel, bookingId, leaveSessionNow, onClose]);
 
   const handleFullscreen = () => {
     if (!isFullscreen) {
@@ -136,6 +167,9 @@ function VideoContainer({
       const res = await extendSessionFiveMinutes({ bookingId }).unwrap();
       if (res?.success) {
         setIsExtended(true);
+        setEffectiveEndTimeMs((prev) =>
+          prev != null ? prev + FIVE_MINUTES_MS : prev
+        );
         success(res?.message ?? "Session extended by 5 minutes.");
       } else {
         error(res?.message ?? "Failed to extend session.");
@@ -144,6 +178,16 @@ function VideoContainer({
       error(err?.data?.message ?? err?.message ?? "Failed to extend session.");
     }
   };
+
+  useEffect(() => {
+    if (!isOpen || effectiveEndTimeMs == null) return;
+    const interval = setInterval(() => {
+      if (Date.now() >= effectiveEndTimeMs) {
+        handleEndCall();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isOpen, effectiveEndTimeMs, handleEndCall]);
 
   if (!isOpen || !sessionData) return null;
 
@@ -213,13 +257,21 @@ function VideoContainer({
         )}
 
         {/* Timer */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center">
-          <div className="bg-black/50 px-3 py-1 rounded">
-            <VideoTimer startTime={callStartTime} isExtended={isExtended} />
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center gap-1">
+          <div className="bg-black/50 px-3 py-2 rounded flex flex-col items-center min-w-[120px]">
+            <VideoTimer startTime={callStartTime} />
+            <div className="text-[10px] sm:text-xs text-gray-400 mt-1.5 flex flex-col items-center gap-0.5">
+              <span>
+                Start: {sessionStartTime ? utcISOToLocalTimeDisplay(sessionStartTime) : "—"}
+              </span>
+              <span>
+                End: {effectiveEndTimeMs != null ? formatMsToTimeDisplay(effectiveEndTimeMs) : "—"}
+              </span>
+            </div>
           </div>
           {isExtended && (
-            <span className="text-green-400 font-bold text-lg animate-blow-out absolute top-full mt-0.5">
-              +5
+            <span className="text-green-400 font-bold text-sm sm:text-base bg-green-500/20 px-2 py-0.5 rounded">
+              5+ extended
             </span>
           )}
         </div>
