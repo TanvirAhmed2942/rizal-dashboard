@@ -199,15 +199,16 @@ function buildTimeOptions() {
 
 const TIME_OPTIONS = buildTimeOptions();
 
-const SLOT_DURATION_MINUTES = 45;
+/** End time shown to user = start + 50 min (e.g. 8:00 → 8:50); same 50 min sent in payload */
+const END_TIME_DISPLAY_MINUTES = 50;
 const MINUTES_PER_SLOT = 5; // TIME_OPTIONS step
-const SLOTS_FOR_DURATION = SLOT_DURATION_MINUTES / MINUTES_PER_SLOT; // 9
+const SLOTS_FOR_END_DISPLAY = END_TIME_DISPLAY_MINUTES / MINUTES_PER_SLOT; // 10 → 50 min
 
 function getEndTimeForStartTime(startTime) {
   if (!startTime) return "";
   const idx = TIME_OPTIONS.indexOf(startTime);
   if (idx === -1) return "";
-  const endIdx = Math.min(idx + SLOTS_FOR_DURATION, TIME_OPTIONS.length - 1);
+  const endIdx = Math.min(idx + SLOTS_FOR_END_DISPLAY, TIME_OPTIONS.length - 1);
   return TIME_OPTIONS[endIdx];
 }
 
@@ -234,23 +235,38 @@ function displayTimeToUTCISO(displayTime, date) {
 }
 
 /**
- * API returns UTC ISO (e.g. "2026-02-18T05:00:00.000Z").
- * Convert to user's LOCAL time and format as "02:00 PM" for the dropdown.
- * Works for users in any timezone.
+ * Parse API time (ISO string, timestamp, or "HH:MM AM/PM") to display string in TIME_OPTIONS.
+ * Rounds to nearest 5 min so result is always in TIME_OPTIONS.
  */
-function utcTimeStringToDisplay(utcTime) {
-  if (!utcTime || typeof utcTime !== "string") return "";
-  const parsed = new Date(utcTime.trim());
+function parseStartTimeToDisplay(utcTime) {
+  if (utcTime == null) return "";
+  if (typeof utcTime === "string") {
+    const trimmed = utcTime.trim();
+    if (TIME_OPTIONS.includes(trimmed)) return trimmed;
+  }
+  const parsed =
+    typeof utcTime === "number"
+      ? new Date(utcTime)
+      : new Date(String(utcTime).trim());
   if (Number.isNaN(parsed.getTime())) return "";
   const hour24 = parsed.getHours();
   const min = parsed.getMinutes();
-  const ampm = hour24 >= 12 ? "PM" : "AM";
-  let hour12 = hour24 % 12;
+  const minRounded = Math.round(min / 5) * 5;
+  const totalMins = hour24 * 60 + (minRounded === 60 ? 60 : minRounded);
+  const h = Math.floor(totalMins / 60) % 24;
+  const m = totalMins % 60;
+  const ampm = h >= 12 ? "PM" : "AM";
+  let hour12 = h % 12;
   if (hour12 === 0) hour12 = 12;
   const hStr = String(hour12).padStart(2, "0");
-  const mStr = String(min).padStart(2, "0");
+  const mStr = String(m).padStart(2, "0");
   const display = `${hStr}:${mStr} ${ampm}`;
   return TIME_OPTIONS.includes(display) ? display : "";
+}
+
+/** @deprecated use parseStartTimeToDisplay */
+function utcTimeStringToDisplay(utcTime) {
+  return parseStartTimeToDisplay(utcTime);
 }
 
 const ScheduleAddEditModal = ({
@@ -258,6 +274,7 @@ const ScheduleAddEditModal = ({
   setOpenModal,
   scheduleData = null,
   initialSelectedDate = null,
+  onSuccess,
 }) => {
   const toast = useToast();
   const [updateAvailability, { isLoading: isAddLoading }] =
@@ -271,7 +288,7 @@ const ScheduleAddEditModal = ({
   );
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const endTime = getEndTimeForStartTime(startTime);
 
   useEffect(() => {
     if (!openModal) return;
@@ -281,7 +298,12 @@ const ScheduleAddEditModal = ({
         Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()),
       );
     };
-    if (isEdit && scheduleData) {
+    const rawStart =
+      scheduleData?.startTime ?? scheduleData?.start_time ?? "";
+    const hasEditData =
+      scheduleData && (rawStart || scheduleData.date) && scheduleData.id;
+
+    if (hasEditData) {
       const date =
         scheduleData.date instanceof Date
           ? scheduleData.date
@@ -289,25 +311,29 @@ const ScheduleAddEditModal = ({
             ? new Date(scheduleData.date)
             : new Date();
       setSelectedDate(toUTCMidnight(date));
-      setStartTime(
-        (utcTimeStringToDisplay(scheduleData.startTime) ||
-          scheduleData.startTime) ??
-          "",
-      );
-      setEndTime(
-        (utcTimeStringToDisplay(scheduleData.endTime) ||
-          scheduleData.endTime) ??
-          "",
-      );
+      const startDisplay =
+        parseStartTimeToDisplay(rawStart) ||
+        (typeof rawStart === "string" &&
+        TIME_OPTIONS.includes(rawStart.trim())
+          ? rawStart.trim()
+          : "");
+      setStartTime(startDisplay || "");
     } else {
       const initial = initialSelectedDate
         ? new Date(initialSelectedDate)
         : new Date();
       setSelectedDate(toUTCMidnight(initial));
       setStartTime("");
-      setEndTime("");
     }
-  }, [openModal, isEdit, scheduleData, initialSelectedDate]);
+  }, [
+    openModal,
+    scheduleData,
+    scheduleData?.id,
+    scheduleData?.startTime,
+    scheduleData?.start_time,
+    scheduleData?.date,
+    initialSelectedDate,
+  ]);
 
   const handleSubmit = async () => {
     if (!startTime || !endTime) {
@@ -322,6 +348,7 @@ const ScheduleAddEditModal = ({
     }
 
     const startTimeUTC = displayTimeToUTCISO(startTime, selectedDate);
+    // End = start + 50 min (user sees 8:00 → 8:50); send same in payload
     const endTimeUTC = displayTimeToUTCISO(endTime, selectedDate);
 
     try {
@@ -333,13 +360,15 @@ const ScheduleAddEditModal = ({
           endTime: endTimeUTC,
         }).unwrap();
         toast.success("Schedule updated successfully");
+        onSuccess?.();
       } else {
         const payload = {
           startTime: startTimeUTC,
-          endTime: endTimeUTC,
+          endTime: endTimeUTC, // start + 50 min
         };
         await updateAvailability(payload).unwrap();
         toast.success("Schedule added successfully");
+        onSuccess?.();
       }
       setOpenModal(false);
     } catch (error) {
@@ -373,13 +402,7 @@ const ScheduleAddEditModal = ({
               <Label className="text-sm font-medium text-gray-700">
                 Start Time
               </Label>
-              <Select
-                value={startTime}
-                onValueChange={(value) => {
-                  setStartTime(value);
-                  setEndTime(getEndTimeForStartTime(value));
-                }}
-              >
+              <Select value={startTime} onValueChange={setStartTime}>
                 <SelectTrigger
                   className={cn(
                     "w-full bg-gray-50 border-gray-200 rounded-md h-10",
@@ -404,26 +427,15 @@ const ScheduleAddEditModal = ({
               <Label className="text-sm font-medium text-gray-700">
                 End Time
               </Label>
-              <Select value={endTime} onValueChange={setEndTime}>
-                <SelectTrigger
-                  className={cn(
-                    "w-full bg-gray-50 border-gray-200 rounded-md h-10",
-                    !endTime && "text-gray-500",
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-400 shrink-0" />
-                    <SelectValue placeholder="Select Time" />
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {TIME_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div
+                className={cn(
+                  "w-full bg-gray-100 border border-gray-200 rounded-md h-10 flex items-center gap-2 px-3 text-sm text-gray-700",
+                  !endTime && "text-gray-500",
+                )}
+              >
+                <Clock className="h-4 w-4 text-gray-400 shrink-0" />
+                {endTime || "—"}
+              </div>
             </div>
           </div>
 
