@@ -56,6 +56,8 @@ export const baseApi = createApi({
         "createArticle",
         "updateArticle",
         "sendMessage",
+        "createPlan",
+        "updatePlan",
       ];
 
       // Check if request body is FormData (dynamic detection)
@@ -106,6 +108,7 @@ export const baseApi = createApi({
     "Notification",
     "TargetDomain",
     "AssignReassign",
+    "Plan",
   ],
   endpoints: () => ({}),
 });

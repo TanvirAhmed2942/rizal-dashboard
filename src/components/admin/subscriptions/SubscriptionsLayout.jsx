@@ -4,6 +4,7 @@ import SmallPageInfo from "@/components/common/SmallPageInfo";
 import React, { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { HiPlus } from "react-icons/hi";
+import { useGetPlanDataQuery } from "@/redux/Apis/admin/planApi/planApi";
 import Stats from "./stats";
 import SubscriptionPlanList from "./SubscriptionPlanList";
 import TransactionList from "./TransactionList";
@@ -12,6 +13,7 @@ import SubscriptionAddEditModal from "./SubscriptionAddEditModa";
 function SubscriptionsLayout() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
+  const { refetch: refetchPlans } = useGetPlanDataQuery();
 
   const handleAddPlan = useCallback(() => {
     setEditingPlan(null);
@@ -44,6 +46,7 @@ function SubscriptionsLayout() {
           if (!open) setEditingPlan(null);
         }}
         planData={editingPlan}
+        onSuccess={refetchPlans}
       />
     </div>
   );

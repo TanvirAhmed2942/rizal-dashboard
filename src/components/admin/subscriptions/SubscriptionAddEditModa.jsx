@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  useCreatePlanMutation,
+  useUpdatePlanMutation,
+  useGetPlanByIdQuery,
+} from "@/redux/Apis/admin/planApi/planApi";
+import useToast from "@/hooks/useToast";
+import { getImageUrl } from "@/utils/getImageUrl";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -44,6 +51,23 @@ const DEFAULT_BUTTON = "#1e40af";
 const DEFAULT_BUTTON_TEXT = "#ffffff";
 
 const fieldHeight = "h-9";
+
+/** Convert hex color (#e0f2fe or e0f2fe) to decimal string for API */
+function hexToDecimal(hex) {
+  if (!hex || typeof hex !== "string") return "0";
+  const cleaned = hex.replace(/^#/, "").trim();
+  const num = parseInt(cleaned, 16);
+  return Number.isNaN(num) ? "0" : String(num);
+}
+
+/** Convert decimal (number or string) from API to hex for color picker */
+function decimalToHex(dec) {
+  if (dec == null) return "";
+  const num = typeof dec === "string" ? parseInt(dec, 10) : Number(dec);
+  if (Number.isNaN(num)) return "";
+  const hex = Math.max(0, Math.min(0xffffff, Math.floor(num))).toString(16);
+  return `#${hex.padStart(6, "0")}`;
+}
 
 function ColorPickerField({ label, color, onChange }) {
   const [open, setOpen] = useState(false);
@@ -79,12 +103,32 @@ function ColorPickerField({ label, color, onChange }) {
   );
 }
 
+/** Normalize API plan (from getPlanById or list) for form: support data.data or data */
+function normalizePlanForForm(plan) {
+  if (!plan) return null;
+  const raw = plan?.data ?? plan;
+  return raw && typeof raw === "object" ? raw : plan;
+}
+
 function SubscriptionAddEditModal({
   openModal,
   setOpenModal,
   planData = null,
+  onSuccess,
 }) {
-  const isEdit = Boolean(planData?.id || planData?._id);
+  const toast = useToast();
+  const [createPlan, { isLoading: isCreateLoading }] = useCreatePlanMutation();
+  const [updatePlan, { isLoading: isUpdateLoading }] = useUpdatePlanMutation();
+  const planId = planData?.id ?? planData?._id ?? null;
+  const isEdit = Boolean(planId);
+
+  const { data: planByIdResponse, isLoading: isLoadingPlan } =
+    useGetPlanByIdQuery(
+      { id: planId },
+      { skip: !openModal || !planId },
+    );
+
+  const fullPlan = normalizePlanForForm(planByIdResponse) ?? planData;
 
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
@@ -103,26 +147,63 @@ function SubscriptionAddEditModal({
 
   useEffect(() => {
     if (!openModal) return;
-    if (isEdit && planData) {
-      setTitle(planData.name ?? planData.title ?? "");
-      setSubtitle(planData.subtitle ?? "");
-      setPrice(String(planData.price ?? ""));
-      setDuration(planData.duration ?? "1 month");
-      setBackgroundColor(planData.backgroundColor ?? DEFAULT_BG);
-      setButtonColor(planData.buttonColor ?? DEFAULT_BUTTON);
-      setButtonTextColor(planData.buttonTextColor ?? DEFAULT_BUTTON_TEXT);
+    if (isEdit && fullPlan) {
+      setTitle(fullPlan.name ?? fullPlan.title ?? "");
+      setSubtitle(fullPlan.subtitle ?? "");
+      setPrice(String(fullPlan.price ?? ""));
+      setDuration(fullPlan.duration ?? "1 month");
+      const bg = fullPlan.backgroundColor ?? fullPlan.background_color;
+      setBackgroundColor(
+        typeof bg === "number" || (typeof bg === "string" && /^\d+$/.test(bg))
+          ? decimalToHex(bg) || DEFAULT_BG
+          : bg ?? DEFAULT_BG,
+      );
+      const btn = fullPlan.buttonColor ?? fullPlan.button_color;
+      setButtonColor(
+        typeof btn === "number" || (typeof btn === "string" && /^\d+$/.test(btn))
+          ? decimalToHex(btn) || DEFAULT_BUTTON
+          : btn ?? DEFAULT_BUTTON,
+      );
+      const btnTxt = fullPlan.buttonTextColor ?? fullPlan.button_text_color;
+      setButtonTextColor(
+        typeof btnTxt === "number" ||
+          (typeof btnTxt === "string" && /^\d+$/.test(btnTxt))
+          ? decimalToHex(btnTxt) || DEFAULT_BUTTON_TEXT
+          : btnTxt ?? DEFAULT_BUTTON_TEXT,
+      );
+      const featureList =
+        fullPlan.featureList ??
+        fullPlan.featuresList ??
+        fullPlan.features;
       setFeatures(
-        Array.isArray(planData.featuresList)
-          ? [...planData.featuresList]
-          : planData.features
-            ? planData.features.split(";").filter(Boolean)
+        Array.isArray(featureList)
+          ? [...featureList]
+          : typeof featureList === "string"
+            ? featureList.split(";").filter(Boolean)
             : [],
       );
-      setAppleProductId(planData.appleProductId ?? "");
-      setGoogleProductId(planData.googleProductId ?? "");
-      setTotalBookings(String(planData.totalBookings ?? ""));
-      setImagePreview(planData.imageUrl ?? "");
-    } else {
+      setAppleProductId(fullPlan.appleProductId ?? fullPlan.apple_product_id ?? "");
+      setGoogleProductId(
+        fullPlan.googleProductId ?? fullPlan.google_product_id ?? "",
+      );
+      setTotalBookings(
+        String(
+          fullPlan.scheduleBookingCount ??
+            fullPlan.totalBookings ??
+            fullPlan.schedule_booking_count ??
+            "",
+        ),
+      );
+      const imgRaw =
+        fullPlan.image ?? fullPlan.imageUrl ?? fullPlan.image_url;
+      const img =
+        typeof imgRaw === "string"
+          ? imgRaw
+          : imgRaw && typeof imgRaw === "object" && imgRaw.url
+            ? imgRaw.url
+            : "";
+      setImagePreview(img ? getImageUrl(img) : "");
+    } else if (!isEdit) {
       setTitle("");
       setSubtitle("");
       setPrice("");
@@ -138,7 +219,7 @@ function SubscriptionAddEditModal({
       setImagePreview("");
       setImageFile(null);
     }
-  }, [openModal, isEdit, planData]);
+  }, [openModal, isEdit, fullPlan]);
 
   const handleAddFeature = () => {
     const text = featureInput.trim();
@@ -159,23 +240,41 @@ function SubscriptionAddEditModal({
     }
   };
 
-  const handleSubmit = (e) => {
+  const buildPlanFormData = () => {
+    const formData = new FormData();
+    formData.append("title", title.trim());
+    formData.append("subtitle", subtitle.trim());
+    formData.append("price", price.trim() || "0");
+    formData.append("backgroundColor", hexToDecimal(backgroundColor));
+    formData.append("buttonColor", hexToDecimal(buttonColor));
+    formData.append("buttonTextColor", hexToDecimal(buttonTextColor));
+    formData.append("duration", duration);
+    formData.append("scheduleBookingCount", totalBookings.trim() || "0");
+    formData.append("appleProductId", appleProductId.trim());
+    formData.append("googleProductId", googleProductId.trim());
+    features.forEach((f) => formData.append("featureList", f.trim()));
+    if (imageFile) formData.append("image", imageFile);
+    return formData;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: call API create/update
-    console.log({
-      title,
-      subtitle,
-      price,
-      duration,
-      backgroundColor,
-      buttonColor,
-      buttonTextColor,
-      features,
-      appleProductId,
-      googleProductId,
-      totalBookings,
-    });
-    setOpenModal(false);
+    const formData = buildPlanFormData();
+    try {
+      if (isEdit && planId) {
+        await updatePlan({ id: planId, formData }).unwrap();
+        toast.success("Plan updated successfully.");
+      } else {
+        await createPlan(formData).unwrap();
+        toast.success("Plan created successfully.");
+      }
+      setOpenModal(false);
+      onSuccess?.();
+    } catch (err) {
+      const msg =
+        err?.data?.message ?? err?.message ?? (isEdit ? "Failed to update plan." : "Failed to create plan.");
+      toast.error(msg);
+    }
   };
 
   return (
@@ -374,12 +473,21 @@ function SubscriptionAddEditModal({
           </ScrollArea>
 
           <DialogFooter className="px-6 py-4 border-t shrink-0 flex flex-row items-center justify-end">
-            <Button
-              type="submit"
-              className="bg-gray-800 hover:bg-gray-700 text-white h-9 px-4"
-            >
-              {isEdit ? "Save Changes" : "Create"}
-            </Button>
+<Button
+            type="submit"
+            disabled={isCreateLoading || isUpdateLoading || (isEdit && isLoadingPlan)}
+            className="bg-gray-800 hover:bg-gray-700 text-white h-9 px-4"
+          >
+            {isCreateLoading
+              ? "Creating..."
+              : isUpdateLoading
+                ? "Saving..."
+                : isEdit && isLoadingPlan
+                  ? "Loading..."
+                  : isEdit
+                    ? "Save Changes"
+                    : "Create"}
+          </Button>
           </DialogFooter>
         </form>
       </DialogContent>
