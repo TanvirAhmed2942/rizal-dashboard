@@ -69,22 +69,28 @@ function BhaScheduleLayout() {
     { skip: !startTimeParam || !endTimeParam },
   );
 
-  const dateNotFound =
-    (slotsResponse?.success === false &&
-      slotsResponse?.message?.includes("Date not found")) ||
-    (slotsError?.data?.success === false &&
-      slotsError?.data?.message?.includes("Date not found"));
+  /** API indicates no slots: "Date not found" or "No available slot found!" (response or error body) */
+  const noSlotsFromApi = (() => {
+    const msgFromResponse =
+      slotsResponse?.success === false ? slotsResponse?.message : undefined;
+    const msgFromError =
+      slotsError?.data?.success === false ? slotsError?.data?.message : undefined;
+    const isNoSlotsMessage = (m) =>
+      typeof m === "string" &&
+      (m.includes("Date not found") || m.includes("No available slot found!"));
+    return isNoSlotsMessage(msgFromResponse) || isNoSlotsMessage(msgFromError);
+  })();
 
   // API returns data.data as array of slots [{ startTime, endTime, _id }, ...]
   const dataSlotsArray = slotsResponse?.data?.data;
   const slotData =
-    dateNotFound || !Array.isArray(dataSlotsArray) || dataSlotsArray.length === 0
+    noSlotsFromApi || !Array.isArray(dataSlotsArray) || dataSlotsArray.length === 0
       ? null
       : dataSlotsArray[0];
-  const availableSlotsRaw = dateNotFound
+  const availableSlotsRaw = noSlotsFromApi
     ? []
     : (slotsResponse?.data?.availableSlots ?? []);
-  const bookingSlotsRaw = dateNotFound
+  const bookingSlotsRaw = noSlotsFromApi
     ? []
     : (slotsResponse?.data?.bookingSlots ?? []);
 
@@ -96,6 +102,15 @@ function BhaScheduleLayout() {
     () => availableSlotsRaw.map(formatSlot).filter(Boolean),
     [availableSlotsRaw],
   );
+
+  /** No slots when we have fetched for this date and: API says no slots, or both lists are empty */
+  const noSlotsForDay =
+    startTimeParam &&
+    endTimeParam &&
+    (noSlotsFromApi ||
+      (slotsResponse != null &&
+        availableSlotsRaw.length === 0 &&
+        bookingSlotsRaw.length === 0));
 
   const handleDateSelect = useCallback((date) => {
     setSelectedDate(date);
@@ -188,7 +203,7 @@ function BhaScheduleLayout() {
         availableSlots={availableSlots}
         bookingSlotsRaw={bookingSlotsRaw}
         availableSlotsRaw={availableSlotsRaw}
-        noSlotsForDay={dateNotFound}
+        noSlotsForDay={noSlotsForDay}
         onEditSlot={handleEditSlot}
         onDeleteSlot={handleDeleteSlot}
         isActionLoading={isSlotsActionLoading}

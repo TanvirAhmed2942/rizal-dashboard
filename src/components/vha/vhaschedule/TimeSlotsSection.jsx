@@ -78,7 +78,7 @@ export default function TimeSlotsSection({
         )}
       >
         <p className="text-sm text-gray-600 text-center py-4">
-          No bookings or slot available on this day.
+          No slots available on this day.
         </p>
       </section>
     );
