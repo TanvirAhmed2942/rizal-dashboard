@@ -18,7 +18,7 @@ import {
 import Image from "next/image";
 import { AiOutlineMessage } from "react-icons/ai";
 import { CgFileDocument } from "react-icons/cg";
-import { GrTask } from "react-icons/gr";
+import { GrDiamond, GrTask } from "react-icons/gr";
 import { LuBookOpen, LuCalendarDays } from "react-icons/lu";
 import { LuSquareUserRound } from "react-icons/lu";
 import { RxDashboard } from "react-icons/rx";
@@ -95,6 +95,11 @@ const sidebars = {
       name: "Target Domain",
       path: "/admin/target-domain",
       icon: TbFishHook,
+    },
+    {
+      name: "Subscriptions",
+      path: "/admin/subscription",
+      icon: GrDiamond,
     },
     {
       name: "Notifications",

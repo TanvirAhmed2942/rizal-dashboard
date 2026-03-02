@@ -24,36 +24,30 @@ import {
 import useToast from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+/** Weekday labels in user's locale */
+function getLocaleWeekdayLabels() {
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => {
+    const d = new Date(2020, 0, 5 + i);
+    return d.toLocaleDateString(undefined, { weekday: "short" });
+  });
+}
 
-function isSameDayUTC(a, b) {
+/** Same calendar day in local timezone */
+function isSameDayLocal(a, b) {
   if (!a || !b) return false;
   return (
-    a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth() === b.getUTCMonth() &&
-    a.getUTCDate() === b.getUTCDate()
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
   );
 }
 
-function getCalendarGridUTC(year, month) {
-  const first = new Date(Date.UTC(year, month, 1));
-  const last = new Date(Date.UTC(year, month + 1, 0));
-  const startWeekday = first.getUTCDay();
-  const daysInMonth = last.getUTCDate();
+/** Calendar grid in local time (year/month = displayed month in user locale) */
+function getCalendarGridLocal(year, month) {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const startWeekday = first.getDay();
+  const daysInMonth = last.getDate();
   const grid = [];
   const totalCells = 42;
   const startOffset = startWeekday;
@@ -62,16 +56,13 @@ function getCalendarGridUTC(year, month) {
     let date;
     let isCurrentMonth;
     if (dayNumber < 1) {
-      const prevMonth = new Date(Date.UTC(year, month - 1, 0));
-      date = new Date(
-        Date.UTC(year, month - 1, prevMonth.getUTCDate() + dayNumber),
-      );
+      date = new Date(year, month - 1, dayNumber);
       isCurrentMonth = false;
     } else if (dayNumber > daysInMonth) {
-      date = new Date(Date.UTC(year, month + 1, dayNumber - daysInMonth));
+      date = new Date(year, month + 1, dayNumber - daysInMonth);
       isCurrentMonth = false;
     } else {
-      date = new Date(Date.UTC(year, month, dayNumber));
+      date = new Date(year, month, dayNumber);
       isCurrentMonth = true;
     }
     grid.push({ date, isCurrentMonth });
@@ -82,47 +73,37 @@ function getCalendarGridUTC(year, month) {
 function CustomCalendar({ selectedDate, onSelect }) {
   const now = new Date();
   const viewInitial = selectedDate
-    ? new Date(
-        Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1),
-      )
-    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+    : new Date(now.getFullYear(), now.getMonth(), 1);
   const [viewDate, setViewDate] = useState(viewInitial);
   useEffect(() => {
     if (selectedDate)
       setViewDate(
-        new Date(
-          Date.UTC(
-            selectedDate.getUTCFullYear(),
-            selectedDate.getUTCMonth(),
-            1,
-          ),
-        ),
+        new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
       );
   }, [selectedDate]);
-  const year = viewDate.getUTCFullYear();
-  const month = viewDate.getUTCMonth();
-  const todayUTC = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const grid = useMemo(() => getCalendarGridUTC(year, month), [year, month]);
+  const grid = useMemo(() => getCalendarGridLocal(year, month), [year, month]);
+  const weekdayLabels = useMemo(() => getLocaleWeekdayLabels(), []);
 
   const goPrev = () => {
-    setViewDate(
-      (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)),
-    );
+    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   };
   const goNext = () => {
-    setViewDate(
-      (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)),
-    );
+    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   };
 
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-gray-900">
-          {MONTH_NAMES[month]} {year}
+          {viewDate.toLocaleDateString(undefined, {
+            month: "long",
+            year: "numeric",
+          })}
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -144,7 +125,7 @@ function CustomCalendar({ selectedDate, onSelect }) {
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5">
-        {WEEKDAY_LABELS.map((label) => (
+        {weekdayLabels.map((label) => (
           <div
             key={label}
             className="text-center text-[0.7rem] font-medium text-gray-500 py-1"
@@ -153,9 +134,9 @@ function CustomCalendar({ selectedDate, onSelect }) {
           </div>
         ))}
         {grid.map(({ date, isCurrentMonth }, i) => {
-          const selected = isSameDayUTC(date, selectedDate);
-          const isToday = isSameDayUTC(date, todayUTC);
-          const isPast = date.getTime() < todayUTC.getTime();
+          const selected = isSameDayLocal(date, selectedDate);
+          const isToday = isSameDayLocal(date, todayLocal);
+          const isPast = date.getTime() < todayLocal.getTime();
           return (
             <button
               key={i}
@@ -172,7 +153,7 @@ function CustomCalendar({ selectedDate, onSelect }) {
                 isPast && "opacity-45 cursor-not-allowed hover:bg-transparent",
               )}
             >
-              {date.getUTCDate()}
+              {date.getDate()}
             </button>
           );
         })}
@@ -213,9 +194,8 @@ function getEndTimeForStartTime(startTime) {
 }
 
 /**
- * User selects time in LOCAL format (e.g. "02:00 PM" in their timezone).
- * We interpret that as "selected calendar day at this local time" and convert to UTC ISO for the API.
- * Works for users in any timezone.
+ * User selects time in LOCAL format (e.g. "02:00 PM").
+ * Selected date is in local; we build local date+time and convert to UTC ISO for the API.
  */
 function displayTimeToUTCISO(displayTime, date) {
   if (!displayTime || typeof displayTime !== "string" || !date) return "";
@@ -227,11 +207,10 @@ function displayTimeToUTCISO(displayTime, date) {
   if (ampm === "PM" && hour !== 12) hour += 12;
   if (ampm === "AM" && hour === 12) hour = 0;
   const d = date instanceof Date ? date : new Date(date);
-  const y = d.getUTCFullYear();
-  const m = d.getUTCMonth();
-  const day = d.getUTCDate();
-  const localDate = new Date(y, m, day, hour, min, 0, 0);
-  return localDate.toISOString();
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(y, m, day, hour, min, 0, 0).toISOString();
 }
 
 /**
@@ -286,17 +265,19 @@ const ScheduleAddEditModal = ({
   const isEdit = Boolean(
     scheduleData && (scheduleData.date ?? scheduleData.startTime),
   );
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  });
   const [startTime, setStartTime] = useState("");
   const endTime = getEndTimeForStartTime(startTime);
 
   useEffect(() => {
     if (!openModal) return;
-    const toUTCMidnight = (d) => {
+    /** UTC or local date → local midnight for calendar display */
+    const toLocalMidnight = (d) => {
       const x = d instanceof Date ? d : new Date(d);
-      return new Date(
-        Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()),
-      );
+      return new Date(x.getFullYear(), x.getMonth(), x.getDate());
     };
     const rawStart =
       scheduleData?.startTime ?? scheduleData?.start_time ?? "";
@@ -310,7 +291,7 @@ const ScheduleAddEditModal = ({
           : scheduleData.date
             ? new Date(scheduleData.date)
             : new Date();
-      setSelectedDate(toUTCMidnight(date));
+      setSelectedDate(toLocalMidnight(date));
       const startDisplay =
         parseStartTimeToDisplay(rawStart) ||
         (typeof rawStart === "string" &&
@@ -322,7 +303,7 @@ const ScheduleAddEditModal = ({
       const initial = initialSelectedDate
         ? new Date(initialSelectedDate)
         : new Date();
-      setSelectedDate(toUTCMidnight(initial));
+      setSelectedDate(toLocalMidnight(initial));
       setStartTime("");
     }
   }, [

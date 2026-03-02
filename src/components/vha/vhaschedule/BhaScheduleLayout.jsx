@@ -13,30 +13,24 @@ import {
 import useToast from "@/hooks/useToast";
 import { utcISOToLocalTimeDisplay } from "@/utils/FormatDate/formateTime";
 
-/** Selected date (UTC day) → start of day in UTC ISO (e.g. "2026-02-18T00:00:00.000Z") */
-function toStartTimeUTC(date) {
+/** Selected date (local day) → start of that day in local, then ISO for API */
+function toStartOfDayISO(date) {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date);
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-  ).toISOString();
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(y, m, day, 0, 0, 0, 0).toISOString();
 }
 
-/** Selected date (UTC day) → end of day in UTC ISO (e.g. "2026-02-18T23:59:59.999Z") */
-function toEndTimeUTC(date) {
+/** Selected date (local day) → end of that day in local, then ISO for API */
+function toEndOfDayISO(date) {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date);
-  return new Date(
-    Date.UTC(
-      d.getUTCFullYear(),
-      d.getUTCMonth(),
-      d.getUTCDate(),
-      23,
-      59,
-      59,
-      999,
-    ),
-  ).toISOString();
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  return new Date(y, m, day, 23, 59, 59, 999).toISOString();
 }
 
 function formatSlot(slot) {
@@ -51,9 +45,7 @@ function BhaScheduleLayout() {
   const toast = useToast();
   const [selectedDate, setSelectedDate] = useState(() => {
     const n = new Date();
-    return new Date(
-      Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()),
-    );
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
@@ -61,11 +53,11 @@ function BhaScheduleLayout() {
     useDoctorSlotsUpdateDeleteMutation();
 
   const startTimeParam = useMemo(
-    () => toStartTimeUTC(selectedDate),
+    () => toStartOfDayISO(selectedDate),
     [selectedDate],
   );
   const endTimeParam = useMemo(
-    () => toEndTimeUTC(selectedDate),
+    () => toEndOfDayISO(selectedDate),
     [selectedDate],
   );
   const {

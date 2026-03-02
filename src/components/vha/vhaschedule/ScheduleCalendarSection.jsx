@@ -5,64 +5,63 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGetBhaScheduleSlotDateQuery } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+/** Weekday labels in user's locale (e.g. Sun, Mon) */
+function getLocaleWeekdayLabels() {
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => {
+    const d = new Date(2020, 0, 5 + i);
+    return d.toLocaleDateString(undefined, { weekday: "short" });
+  });
+}
 
-function isSameDayUTC(a, b) {
+/** Same calendar day in local timezone */
+function isSameDayLocal(a, b) {
   if (!a || !b) return false;
   return (
-    a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth() === b.getUTCMonth() &&
-    a.getUTCDate() === b.getUTCDate()
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
   );
 }
 
-function toYYYYMMDDUTC(date) {
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-/** Selected calendar date → UTC ISO for API params (e.g. "2026-02-15T00:00:00.000Z") */
-function toDateParamUTC(date) {
+/** Local date string YYYY-MM-DD (user's timezone) for matching */
+function toLocalYYYYMMDD(date) {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-function parseAvailableDates(data) {
+/** API data array of ISO strings → Set of local YYYY-MM-DD for calendar */
+function parseAvailableDatesToLocalSet(data) {
   if (!Array.isArray(data)) return new Set();
   return new Set(
-    data.map((iso) => {
-      try {
-        const date = new Date(iso);
-        return toYYYYMMDDUTC(date);
-      } catch {
-        return null;
-      }
-    }).filter(Boolean)
+    data
+      .map((iso) => {
+        try {
+          const date = new Date(String(iso).trim());
+          if (Number.isNaN(date.getTime())) return null;
+          return toLocalYYYYMMDD(date);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean)
   );
 }
 
-function getCalendarGridUTC(year, month) {
-  const first = new Date(Date.UTC(year, month, 1));
-  const last = new Date(Date.UTC(year, month + 1, 0));
-  const startWeekday = first.getUTCDay();
-  const daysInMonth = last.getUTCDate();
+/** First of month UTC ISO for API (year/month = calendar month in local) */
+function toDateParamUTC(year, month) {
+  return new Date(Date.UTC(year, month, 1)).toISOString();
+}
+
+/** Calendar grid in local time; year/month = displayed month in user locale */
+function getCalendarGridLocal(year, month) {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const startWeekday = first.getDay();
+  const daysInMonth = last.getDate();
   const grid = [];
   const totalCells = 42;
   const startOffset = startWeekday;
@@ -71,14 +70,13 @@ function getCalendarGridUTC(year, month) {
     let date;
     let isCurrentMonth;
     if (dayNumber < 1) {
-      const prevMonth = new Date(Date.UTC(year, month - 1, 0));
-      date = new Date(Date.UTC(year, month - 1, prevMonth.getUTCDate() + dayNumber));
+      date = new Date(year, month - 1, dayNumber);
       isCurrentMonth = false;
     } else if (dayNumber > daysInMonth) {
-      date = new Date(Date.UTC(year, month + 1, dayNumber - daysInMonth));
+      date = new Date(year, month + 1, dayNumber - daysInMonth);
       isCurrentMonth = false;
     } else {
-      date = new Date(Date.UTC(year, month, dayNumber));
+      date = new Date(year, month, dayNumber);
       isCurrentMonth = true;
     }
     grid.push({ date, isCurrentMonth });
@@ -89,37 +87,35 @@ function getCalendarGridUTC(year, month) {
 export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
   const now = new Date();
   const viewInitial = selectedDate
-    ? new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1))
-    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+    : new Date(now.getFullYear(), now.getMonth(), 1);
   const [viewDate, setViewDate] = useState(viewInitial);
   useEffect(() => {
     if (selectedDate)
-      setViewDate(new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), 1)));
+      setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
   }, [selectedDate]);
-  const year = viewDate.getUTCFullYear();
-  const month = viewDate.getUTCMonth();
-  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const dateParamUTC = useMemo(
-    () => toDateParamUTC(new Date(Date.UTC(year, month, 1))),
-    [year, month]
-  );
+  const dateParamUTC = useMemo(() => toDateParamUTC(year, month), [year, month]);
   const { data: availableDatesResponse } = useGetBhaScheduleSlotDateQuery(
     { date: dateParamUTC },
     { skip: !dateParamUTC }
   );
   const availableDatesSet = useMemo(
-    () => parseAvailableDates(availableDatesResponse?.data),
+    () => parseAvailableDatesToLocalSet(availableDatesResponse?.data),
     [availableDatesResponse?.data]
   );
 
-  const grid = useMemo(() => getCalendarGridUTC(year, month), [year, month]);
+  const grid = useMemo(() => getCalendarGridLocal(year, month), [year, month]);
+  const weekdayLabels = useMemo(() => getLocaleWeekdayLabels(), []);
 
   const goPrev = () => {
-    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)));
+    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   };
   const goNext = () => {
-    setViewDate((d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)));
+    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   };
 
   return (
@@ -135,7 +131,7 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
             <ChevronLeft className="size-4" />
           </button>
           <span className="text-sm font-medium text-gray-900">
-            {MONTH_NAMES[month]} {year}
+            {viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
           </span>
           <button
             type="button"
@@ -148,7 +144,7 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5">
-        {WEEKDAY_LABELS.map((label) => (
+        {weekdayLabels.map((label) => (
           <div
             key={label}
             className="text-left text-[0.7rem] font-medium text-gray-500 py-1 pl-3"
@@ -157,9 +153,9 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
           </div>
         ))}
         {grid.map(({ date, isCurrentMonth }, i) => {
-          const selected = isSameDayUTC(date, selectedDate);
-          const isToday = isSameDayUTC(date, todayUTC);
-          const isAvailable = availableDatesSet.has(toYYYYMMDDUTC(date));
+          const selected = isSameDayLocal(date, selectedDate);
+          const isToday = isSameDayLocal(date, todayLocal);
+          const isAvailable = availableDatesSet.has(toLocalYYYYMMDD(date));
           return (
             <button
               key={i}
@@ -175,7 +171,7 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
                 isAvailable && !selected && isCurrentMonth && "ring-2 ring-teal-400 ring-inset",
               )}
             >
-              {date.getUTCDate()}
+              {date.getDate()}
             </button>
           );
         })}

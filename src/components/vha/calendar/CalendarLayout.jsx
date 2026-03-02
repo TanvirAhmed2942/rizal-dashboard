@@ -7,16 +7,19 @@ import { Calendar } from "@/components/ui/calendar";
 import { useGetTodaysSessionDataQuery } from "@/redux/Apis/bha/todaysessionApi/todaysessionApi";
 
 function CalendarLayout() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  });
 
-  // Selected date → day start/end in UTC for API (e.g. 24th → dayStartTime=2026-02-24T00:00:00.000Z, dayEndTime=2026-02-24T23:59:59.999Z)
+  // Selected date (local day) → start/end of that day in local, then ISO for API
   const dayStartTime = React.useMemo(() => {
     if (!selectedDate) return "";
     const d = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
     const y = d.getFullYear();
     const m = d.getMonth();
     const day = d.getDate();
-    return new Date(Date.UTC(y, m, day)).toISOString();
+    return new Date(y, m, day, 0, 0, 0, 0).toISOString();
   }, [selectedDate]);
 
   const dayEndTime = React.useMemo(() => {
@@ -25,7 +28,7 @@ function CalendarLayout() {
     const y = d.getFullYear();
     const m = d.getMonth();
     const day = d.getDate();
-    return new Date(Date.UTC(y, m, day, 23, 59, 59, 999)).toISOString();
+    return new Date(y, m, day, 23, 59, 59, 999).toISOString();
   }, [selectedDate]);
 
   const {
@@ -69,7 +72,10 @@ const CalenderComponent = ({ selectedDate, setSelectedDate }) => {
     <Calendar
       mode="single"
       selected={selectedDate}
-      onSelect={(date) => date && setSelectedDate(date)}
+      onSelect={(date) =>
+        date &&
+        setSelectedDate(new Date(date.getFullYear(), date.getMonth(), date.getDate()))
+      }
       className="rounded-lg border w-auto aspect-square size-auto"
       classNames={{
         today:
