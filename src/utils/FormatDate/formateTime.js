@@ -29,4 +29,25 @@ export function utcISOToLocalTimeDisplay(utcISO) {
   return `${h}:${m} ${ampm}`;
 }
 
+/**
+ * UTC ISO string → local date + time (e.g. "2026-03-02T08:00:00.000Z" → "02 Mar 2026, 2:00 PM").
+ * Matches table display: Start Time (Local) / End Time (Local).
+ */
+export function utcISOToLocalDateTimeDisplay(utcISO) {
+  if (!utcISO || typeof utcISO !== "string") return "";
+  const d = new Date(utcISO.trim());
+  if (Number.isNaN(d.getTime())) return "";
+  const datePart = d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const timePart = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
+}
+
 export default formatTime;

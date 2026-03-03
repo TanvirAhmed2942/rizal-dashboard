@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { HiPlus } from "react-icons/hi";
 import ScheduleCalendarSection from "./ScheduleCalendarSection";
@@ -33,12 +33,65 @@ function toEndOfDayISO(date) {
   return new Date(y, m, day, 23, 59, 59, 999).toISOString();
 }
 
+/** Current month (local) → start of first day in local, then ISO for API */
+function toStartOfCurrentMonthISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  return new Date(y, m, 1, 0, 0, 0, 0).toISOString();
+}
+
+/** Current month (local) → end of last day in local, then ISO for API */
+function toEndOfCurrentMonthISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  return new Date(y, m + 1, 0, 23, 59, 59, 999).toISOString();
+}
+
 function formatSlot(slot) {
   if (!slot || typeof slot !== "object") return "";
   const start =
     (utcISOToLocalTimeDisplay(slot.startTime) || slot.startTime) ?? "";
   const end = (utcISOToLocalTimeDisplay(slot.endTime) || slot.endTime) ?? "";
   return start && end ? `${start} - ${end}` : "";
+}
+
+/** True if slot's startTime (UTC ISO) falls on the given local date (year, month, day). */
+function slotIsOnDate(slot, localDate) {
+  if (!slot?.startTime || !localDate) return false;
+  const d = localDate instanceof Date ? localDate : new Date(localDate);
+  const slotDate = new Date(slot.startTime);
+  return (
+    d.getFullYear() === slotDate.getFullYear() &&
+    d.getMonth() === slotDate.getMonth() &&
+    d.getDate() === slotDate.getDate()
+  );
+}
+
+/** Local YYYY-MM-DD for a date (for calendar matching). */
+function toLocalYYYYMMDD(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** From month slots, get unique local dates (YYYY-MM-DD) that have at least one slot, sorted. */
+function getAvailableDatesFromSlots(availableSlotsMonth, bookingSlotsMonth) {
+  const set = new Set();
+  for (const slot of [
+    ...(availableSlotsMonth || []),
+    ...(bookingSlotsMonth || []),
+  ]) {
+    if (slot?.startTime) {
+      const d = new Date(slot.startTime);
+      set.add(toLocalYYYYMMDD(d));
+    }
+  }
+  return Array.from(set).sort();
 }
 
 function BhaScheduleLayout() {
@@ -52,14 +105,8 @@ function BhaScheduleLayout() {
   const [slotsUpdateDelete, { isLoading: isSlotsActionLoading }] =
     useDoctorSlotsUpdateDeleteMutation();
 
-  const startTimeParam = useMemo(
-    () => toStartOfDayISO(selectedDate),
-    [selectedDate],
-  );
-  const endTimeParam = useMemo(
-    () => toEndOfDayISO(selectedDate),
-    [selectedDate],
-  );
+  const startTimeParam = useMemo(() => toStartOfCurrentMonthISO(), []);
+  const endTimeParam = useMemo(() => toEndOfCurrentMonthISO(), []);
   const {
     data: slotsResponse,
     error: slotsError,
@@ -74,25 +121,44 @@ function BhaScheduleLayout() {
     const msgFromResponse =
       slotsResponse?.success === false ? slotsResponse?.message : undefined;
     const msgFromError =
-      slotsError?.data?.success === false ? slotsError?.data?.message : undefined;
+      slotsError?.data?.success === false
+        ? slotsError?.data?.message
+        : undefined;
     const isNoSlotsMessage = (m) =>
       typeof m === "string" &&
       (m.includes("Date not found") || m.includes("No available slot found!"));
     return isNoSlotsMessage(msgFromResponse) || isNoSlotsMessage(msgFromError);
   })();
 
-  // API returns data.data as array of slots [{ startTime, endTime, _id }, ...]
-  const dataSlotsArray = slotsResponse?.data?.data;
-  const slotData =
-    noSlotsFromApi || !Array.isArray(dataSlotsArray) || dataSlotsArray.length === 0
-      ? null
-      : dataSlotsArray[0];
-  const availableSlotsRaw = noSlotsFromApi
+  // API returns month-wide: data.data, availableSlots, bookingSlots — filter by selected date
+  const availableSlotsRawMonth = noSlotsFromApi
     ? []
     : (slotsResponse?.data?.availableSlots ?? []);
-  const bookingSlotsRaw = noSlotsFromApi
+  const bookingSlotsRawMonth = noSlotsFromApi
     ? []
     : (slotsResponse?.data?.bookingSlots ?? []);
+
+  /** Unique local dates (YYYY-MM-DD) that have slots this month (for calendar dots). */
+  const availableDates = useMemo(
+    () =>
+      getAvailableDatesFromSlots(availableSlotsRawMonth, bookingSlotsRawMonth),
+    [availableSlotsRawMonth, bookingSlotsRawMonth],
+  );
+  const availableDatesSet = useMemo(
+    () => new Set(availableDates),
+    [availableDates],
+  );
+
+  const availableSlotsRaw = useMemo(
+    () =>
+      availableSlotsRawMonth.filter((slot) => slotIsOnDate(slot, selectedDate)),
+    [availableSlotsRawMonth, selectedDate],
+  );
+  const bookingSlotsRaw = useMemo(
+    () =>
+      bookingSlotsRawMonth.filter((slot) => slotIsOnDate(slot, selectedDate)),
+    [bookingSlotsRawMonth, selectedDate],
+  );
 
   const bookedSlots = useMemo(
     () => bookingSlotsRaw.map(formatSlot).filter(Boolean),
@@ -103,7 +169,7 @@ function BhaScheduleLayout() {
     [availableSlotsRaw],
   );
 
-  /** No slots when we have fetched for this date and: API says no slots, or both lists are empty */
+  /** No slots for selected day: we have response and both filtered lists for that day are empty */
   const noSlotsForDay =
     startTimeParam &&
     endTimeParam &&
@@ -111,6 +177,17 @@ function BhaScheduleLayout() {
       (slotsResponse != null &&
         availableSlotsRaw.length === 0 &&
         bookingSlotsRaw.length === 0));
+
+  /** When month data loads, if selected date has no slots, select first available (Flutter: onDaySelected(availableDate.first)). */
+  useEffect(() => {
+    if (availableDates.length === 0) return;
+    const currentKey = toLocalYYYYMMDD(selectedDate);
+    if (availableDatesSet.has(currentKey)) return;
+    const [first] = availableDates;
+    if (!first) return;
+    const [y, m, d] = first.split("-").map(Number);
+    setSelectedDate(new Date(y, m - 1, d));
+  }, [availableDates, availableDatesSet, selectedDate]);
 
   const handleDateSelect = useCallback((date) => {
     setSelectedDate(date);
@@ -138,7 +215,9 @@ function BhaScheduleLayout() {
         toast.error("No schedule slot to delete");
         return;
       }
-      if (!window.confirm("Are you sure you want to delete this schedule slot?")) {
+      if (
+        !window.confirm("Are you sure you want to delete this schedule slot?")
+      ) {
         return;
       }
       try {
@@ -151,9 +230,7 @@ function BhaScheduleLayout() {
         refetch();
       } catch (err) {
         const msg =
-          err?.data?.message ??
-          err?.message ??
-          "Failed to delete schedule";
+          err?.data?.message ?? err?.message ?? "Failed to delete schedule";
         toast.error(msg);
       }
     },
@@ -191,14 +268,16 @@ function BhaScheduleLayout() {
         </Button>
       </div>
 
-      {/* 1. Calendar Section */}
+      {/* 1. Calendar Section — availableDates = days that have slots (from month response) */}
       <ScheduleCalendarSection
         selectedDate={selectedDate}
         onSelect={handleDateSelect}
+        availableDates={availableDatesSet}
       />
 
-      {/* 2. Time Slots Section (Booked / Available) */}
+      {/* 2. Time Slots Section (Booked / Available) for selected date */}
       <TimeSlotsSection
+        selectedDate={selectedDate}
         bookedSlots={bookedSlots}
         availableSlots={availableSlots}
         bookingSlotsRaw={bookingSlotsRaw}

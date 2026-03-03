@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGetBhaScheduleSlotDateQuery } from "@/redux/Apis/bha/scheuleApi/scheduleApi";
 
 /** Weekday labels in user's locale (e.g. Sun, Mon) */
 function getLocaleWeekdayLabels() {
@@ -33,27 +32,15 @@ function toLocalYYYYMMDD(date) {
   return `${y}-${m}-${day}`;
 }
 
-/** API data array of ISO strings → Set of local YYYY-MM-DD for calendar */
-function parseAvailableDatesToLocalSet(data) {
-  if (!Array.isArray(data)) return new Set();
-  return new Set(
-    data
-      .map((iso) => {
-        try {
-          const date = new Date(String(iso).trim());
-          if (Number.isNaN(date.getTime())) return null;
-          return toLocalYYYYMMDD(date);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean)
-  );
-}
-
-/** First of month UTC ISO for API (year/month = calendar month in local) */
-function toDateParamUTC(year, month) {
-  return new Date(Date.UTC(year, month, 1)).toISOString();
+/** Display selected date like "02 Mar 2026" (matches slot table format) */
+function formatSelectedDateDisplay(date) {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /** Calendar grid in local time; year/month = displayed month in user locale */
@@ -84,7 +71,12 @@ function getCalendarGridLocal(year, month) {
   return grid;
 }
 
-export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
+export default function ScheduleCalendarSection({
+  selectedDate,
+  onSelect,
+  /** Set of local YYYY-MM-DD strings for days that have slots (from parent month data). */
+  availableDates = new Set(),
+}) {
   const now = new Date();
   const viewInitial = selectedDate
     ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
@@ -98,15 +90,7 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
   const month = viewDate.getMonth();
   const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const dateParamUTC = useMemo(() => toDateParamUTC(year, month), [year, month]);
-  const { data: availableDatesResponse } = useGetBhaScheduleSlotDateQuery(
-    { date: dateParamUTC },
-    { skip: !dateParamUTC }
-  );
-  const availableDatesSet = useMemo(
-    () => parseAvailableDatesToLocalSet(availableDatesResponse?.data),
-    [availableDatesResponse?.data]
-  );
+  const availableDatesSet = availableDates instanceof Set ? availableDates : new Set(availableDates || []);
 
   const grid = useMemo(() => getCalendarGridLocal(year, month), [year, month]);
   const weekdayLabels = useMemo(() => getLocaleWeekdayLabels(), []);
@@ -176,6 +160,11 @@ export default function ScheduleCalendarSection({ selectedDate, onSelect }) {
           );
         })}
       </div>
+      {selectedDate && (
+        <p className="mt-2 text-center text-xs text-gray-600">
+          Selected: {formatSelectedDateDisplay(selectedDate)}
+        </p>
+      )}
     </section>
   );
 }

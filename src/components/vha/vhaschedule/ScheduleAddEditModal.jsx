@@ -376,8 +376,23 @@ const ScheduleAddEditModal = ({
             selectedDate={selectedDate}
             onSelect={(date) => setSelectedDate(date)}
           />
+          {selectedDate && (
+            <p className="text-sm text-gray-600">
+              Date:{" "}
+              {selectedDate.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
+              {startTime && endTime && (
+                <span className="ml-1">
+                  · Start: {startTime} → End: {endTime}
+                </span>
+              )}
+            </p>
+          )}
 
-          {/* Start Time & End Time */}
+          {/* Start Time & End Time (Local) */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">
