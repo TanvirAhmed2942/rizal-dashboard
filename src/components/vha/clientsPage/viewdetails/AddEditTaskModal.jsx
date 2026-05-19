@@ -26,9 +26,25 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 
-import { Loader, CalendarIcon } from "lucide-react";
+import { Loader, CalendarIcon, ChevronDown } from "lucide-react";
 import { useGetAllTargetDomainsQuery } from "@/redux/Apis/admin/targetdomainApi/targetdomainApi";
 import { TimePickerInput } from "@/components/ui/shadcn-io/rating/timepickerinput";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const SCHEDULE_TYPES = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+];
+
+const WEEKDAYS = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
+];
 const AddEditTaskModal = ({
   openModal,
   setOpenModal,
@@ -45,17 +61,48 @@ const AddEditTaskModal = ({
     taskDescription: "",
     categoryId: "",
     targetDomainId: "",
+    type: "daily",
+    days: [],
     startDateTime: null,
     endDateTime: null,
   });
   const [isFromOpen, setIsFromOpen] = useState(false);
   const [isToOpen, setIsToOpen] = useState(false);
+  const [isDaysOpen, setIsDaysOpen] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
 
   const targetDomains = targetDomainsData?.data || [];
 
   const updateField = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "type" && value === "daily") {
+        next.days = [];
+      }
+      return next;
+    });
+    setScheduleError("");
   };
+
+  const toggleWeekday = (dayValue) => {
+    setFormData((prev) => {
+      const has = prev.days.includes(dayValue);
+      const days = has
+        ? prev.days.filter((d) => d !== dayValue)
+        : [...prev.days, dayValue];
+      return { ...prev, days };
+    });
+    setScheduleError("");
+  };
+
+  const weekdaysSummary =
+    formData.days.length === 0
+      ? "Select days"
+      : formData.days
+          .map(
+            (d) => WEEKDAYS.find((w) => w.value === d)?.label ?? d
+          )
+          .join(", ");
 
   const parseDateTime = (dateVal, timeVal) => {
     if (!dateVal) return null;
@@ -76,23 +123,34 @@ const AddEditTaskModal = ({
         categoryId: initialData?.categoryId || "",
         targetDomainId:
           initialData?.targetDomainId || initialData?.targetedDomainId || "",
+        type: initialData?.type === "weekly" ? "weekly" : "daily",
+        days: Array.isArray(initialData?.days)
+          ? initialData.days.filter(Boolean)
+          : [],
         startDateTime: parseDateTime(
           initialData?.startDate,
           initialData?.startTime
         ),
         endDateTime: parseDateTime(initialData?.endDate, initialData?.endTime),
       });
+      setScheduleError("");
     }
   }, [openModal, initialData]);
 
   const handleSave = () => {
     if (!formData.taskTitle.trim()) return;
+    if (formData.type === "weekly" && formData.days.length === 0) {
+      setScheduleError("Select at least one day for weekly schedule.");
+      return;
+    }
     const payload = {
       id: initialData?.id,
       title: formData.taskTitle,
       description: formData.taskDescription,
       categoryId: formData.categoryId,
       targetDomainId: formData.targetDomainId,
+      type: formData.type,
+      ...(formData.type === "weekly" ? { days: formData.days } : {}),
       startTime: formData.startDateTime
         ? format(formData.startDateTime, "HH:mm")
         : "",
@@ -148,6 +206,72 @@ const AddEditTaskModal = ({
               className="bg-gray-100 min-h-[140px]"
             />
           </div>
+
+          {/* Schedule type */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-900">Type</label>
+            <Select
+              value={formData.type}
+              onValueChange={(val) => updateField("type", val)}
+            >
+              <SelectTrigger className="bg-gray-100 w-full">
+                <SelectValue placeholder="Select schedule type" />
+              </SelectTrigger>
+              <SelectContent>
+                {SCHEDULE_TYPES.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Weekly days (dropdown-style popover) */}
+          {formData.type === "weekly" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-900">Days</label>
+              <Popover open={isDaysOpen} onOpenChange={setIsDaysOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between bg-gray-100 border-gray-200 font-normal"
+                  >
+                    <span
+                      className={
+                        formData.days.length === 0
+                          ? "text-gray-500"
+                          : "text-left truncate"
+                      }
+                    >
+                      {weekdaysSummary}
+                    </span>
+                    <ChevronDown className="size-4 shrink-0 opacity-60" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3" align="start">
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {WEEKDAYS.map((d) => (
+                      <label
+                        key={d.value}
+                        className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-1 py-1.5 hover:bg-muted/60"
+                      >
+                        <Checkbox
+                          checked={formData.days.includes(d.value)}
+                          onCheckedChange={() => toggleWeekday(d.value)}
+                        />
+                        <span>{d.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {scheduleError ? (
+                <p className="text-sm text-destructive">{scheduleError}</p>
+              ) : null}
+            </div>
+          )}
 
           {/* Target Domain */}
           <div className="space-y-2">

@@ -56,6 +56,17 @@ function AssignTaskLayout() {
     }
   };
 
+  const formatDaysList = (days) => {
+    if (!Array.isArray(days) || days.length === 0) return "—";
+    return days
+      .map((d) =>
+        typeof d === "string"
+          ? d.charAt(0).toUpperCase() + d.slice(1).toLowerCase()
+          : d
+      )
+      .join(", ");
+  };
+
   // Map API data to table format
   const tasks =
     assignTaskData?.data?.map((task) => ({
@@ -64,6 +75,9 @@ function AssignTaskLayout() {
       taskDescription: task.description,
       targetDomain: task.targetDomain,
       targetDomainId: task.targetDomainId,
+      type: task.type === "weekly" ? "weekly" : "daily",
+      days: Array.isArray(task.days) ? task.days : [],
+      daysLabel: formatDaysList(task.days),
       startDate: formatDate(task.startDate),
       endDate: formatDate(task.endDate),
       startTime: formatTime(task.startDate),
@@ -108,6 +122,10 @@ function AssignTaskLayout() {
         title: taskData.title,
         description: taskData.description,
         targetDomainId: taskData.targetDomainId,
+        type: taskData.type,
+        ...(taskData.type === "weekly" && Array.isArray(taskData.days)
+          ? { days: taskData.days }
+          : {}),
         startDate: taskData.startDate,
         endDate: taskData.endDate,
       };
@@ -173,6 +191,8 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
             <TableHead>Task Name</TableHead>
             <TableHead>Task Description</TableHead>
             <TableHead>Target Domain</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Days</TableHead>
             <TableHead>Start Date</TableHead>
             <TableHead>Start Time</TableHead>
             <TableHead>End Date</TableHead>
@@ -184,7 +204,7 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
         <TableBody>
           {tasks.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+              <TableCell colSpan={11} className="text-center py-8 text-gray-500">
                 No tasks assigned yet
               </TableCell>
             </TableRow>
@@ -203,6 +223,10 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
                   >
                     {data.targetDomain}
                   </Badge>
+                </TableCell>
+                <TableCell className="capitalize">{data.type || "—"}</TableCell>
+                <TableCell className="max-w-[160px] text-sm">
+                  {data.type === "weekly" ? data.daysLabel : "—"}
                 </TableCell>
                 <TableCell>{data.startDate}</TableCell>
                 <TableCell>{data.startTime}</TableCell>

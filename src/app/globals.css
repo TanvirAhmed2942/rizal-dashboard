@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@import "tw-animate-css";
+@config "../../tailwind.config.js";
+@source "../../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -116,10 +117,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
+
 .loader {
   /* width: 48px;
   height: 48px; */
@@ -135,6 +138,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }

@@ -5,7 +5,7 @@ import { baseUrl } from "./baseUrl";
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: baseUrl || process.env.NEXT_PUBLIC_API_BASE_URL,
+    baseUrl,
     prepareHeaders: (headers, { endpoint, type, originalArgs }) => {
       // Get all tokens from cookies
       const accessToken = getCookie("accessToken");
