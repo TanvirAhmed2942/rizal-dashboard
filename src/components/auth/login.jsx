@@ -85,9 +85,9 @@ export default function Login() {
         throw new Error(response?.message || "Login failed");
       }
     } catch (error) {
-      // Handle error
       const errorMessage =
         error?.data?.message ||
+        error?.error ||
         error?.message ||
         "An error occurred during login. Please try again.";
       toast.error(errorMessage);
@@ -172,6 +172,7 @@ export default function Login() {
               </Label>
             </div>
             <Button
+              type="button"
               variant="link"
               className="px-0 text-sm text-gray-500 hover:text-gray-600/80 cursor-pointer"
               onClick={() => router.push("/auth/forgot-password")}

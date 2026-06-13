@@ -122,10 +122,7 @@ function AssignTaskLayout() {
         title: taskData.title,
         description: taskData.description,
         targetDomainId: taskData.targetDomainId,
-        type: taskData.type,
-        ...(taskData.type === "weekly" && Array.isArray(taskData.days)
-          ? { days: taskData.days }
-          : {}),
+        days: Array.isArray(taskData.days) ? taskData.days : [],
         startDate: taskData.startDate,
         endDate: taskData.endDate,
       };

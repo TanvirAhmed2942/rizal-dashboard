@@ -1,8 +1,3 @@
-/**
- * Single source of truth for the REST API origin (no trailing slash).
- * Set NEXT_PUBLIC_API_BASE_URL in .env.local to match Postman {{BHL_url}}.
- */
-const raw =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://54.241.114.7:5000/api/v1";
-
-export const baseUrl = raw.replace(/\/+$/, ""); 
+// All browser requests go through the Next.js proxy (/api/v1/*) to avoid CORS.
+// The proxy destination is configured in next.config.mjs rewrites.
+export const baseUrl = "/api/v1";

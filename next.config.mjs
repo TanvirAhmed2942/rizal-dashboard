@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://54.241.114.7:5000/api/v1";
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${apiBase}/:path*`,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

@@ -31,11 +31,6 @@ import { useGetAllTargetDomainsQuery } from "@/redux/Apis/admin/targetdomainApi/
 import { TimePickerInput } from "@/components/ui/shadcn-io/rating/timepickerinput";
 import { Checkbox } from "@/components/ui/checkbox";
 
-const SCHEDULE_TYPES = [
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-];
-
 const WEEKDAYS = [
   { value: "monday", label: "Monday" },
   { value: "tuesday", label: "Tuesday" },
@@ -61,7 +56,6 @@ const AddEditTaskModal = ({
     taskDescription: "",
     categoryId: "",
     targetDomainId: "",
-    type: "daily",
     days: [],
     startDateTime: null,
     endDateTime: null,
@@ -74,13 +68,7 @@ const AddEditTaskModal = ({
   const targetDomains = targetDomainsData?.data || [];
 
   const updateField = (field, value) => {
-    setFormData((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === "type" && value === "daily") {
-        next.days = [];
-      }
-      return next;
-    });
+    setFormData((prev) => ({ ...prev, [field]: value }));
     setScheduleError("");
   };
 
@@ -123,7 +111,6 @@ const AddEditTaskModal = ({
         categoryId: initialData?.categoryId || "",
         targetDomainId:
           initialData?.targetDomainId || initialData?.targetedDomainId || "",
-        type: initialData?.type === "weekly" ? "weekly" : "daily",
         days: Array.isArray(initialData?.days)
           ? initialData.days.filter(Boolean)
           : [],
@@ -139,8 +126,8 @@ const AddEditTaskModal = ({
 
   const handleSave = () => {
     if (!formData.taskTitle.trim()) return;
-    if (formData.type === "weekly" && formData.days.length === 0) {
-      setScheduleError("Select at least one day for weekly schedule.");
+    if (formData.days.length === 0) {
+      setScheduleError("Please select at least one day.");
       return;
     }
     const payload = {
@@ -149,8 +136,7 @@ const AddEditTaskModal = ({
       description: formData.taskDescription,
       categoryId: formData.categoryId,
       targetDomainId: formData.targetDomainId,
-      type: formData.type,
-      ...(formData.type === "weekly" ? { days: formData.days } : {}),
+      days: formData.days,
       startTime: formData.startDateTime
         ? format(formData.startDateTime, "HH:mm")
         : "",
@@ -165,10 +151,6 @@ const AddEditTaskModal = ({
         : "",
     };
     if (onSave) onSave(payload);
-  };
-
-  const handleClose = () => {
-    setOpenModal(false);
   };
 
   return (
@@ -207,71 +189,51 @@ const AddEditTaskModal = ({
             />
           </div>
 
-          {/* Schedule type */}
+          {/* Days (always visible, required) */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-900">Type</label>
-            <Select
-              value={formData.type}
-              onValueChange={(val) => updateField("type", val)}
-            >
-              <SelectTrigger className="bg-gray-100 w-full">
-                <SelectValue placeholder="Select schedule type" />
-              </SelectTrigger>
-              <SelectContent>
-                {SCHEDULE_TYPES.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Weekly days (dropdown-style popover) */}
-          {formData.type === "weekly" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-900">Days</label>
-              <Popover open={isDaysOpen} onOpenChange={setIsDaysOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-between bg-gray-100 border-gray-200 font-normal"
+            <label className="text-sm font-medium text-gray-900">
+              Days <span className="text-destructive">*</span>
+            </label>
+            <Popover open={isDaysOpen} onOpenChange={setIsDaysOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between bg-gray-100 border-gray-200 font-normal"
+                >
+                  <span
+                    className={
+                      formData.days.length === 0
+                        ? "text-gray-500"
+                        : "text-left truncate"
+                    }
                   >
-                    <span
-                      className={
-                        formData.days.length === 0
-                          ? "text-gray-500"
-                          : "text-left truncate"
-                      }
+                    {weekdaysSummary}
+                  </span>
+                  <ChevronDown className="size-4 shrink-0 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3" align="start">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {WEEKDAYS.map((d) => (
+                    <label
+                      key={d.value}
+                      className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-1 py-1.5 hover:bg-muted/60"
                     >
-                      {weekdaysSummary}
-                    </span>
-                    <ChevronDown className="size-4 shrink-0 opacity-60" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3" align="start">
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {WEEKDAYS.map((d) => (
-                      <label
-                        key={d.value}
-                        className="flex items-center gap-2 text-sm cursor-pointer rounded-md px-1 py-1.5 hover:bg-muted/60"
-                      >
-                        <Checkbox
-                          checked={formData.days.includes(d.value)}
-                          onCheckedChange={() => toggleWeekday(d.value)}
-                        />
-                        <span>{d.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              {scheduleError ? (
-                <p className="text-sm text-destructive">{scheduleError}</p>
-              ) : null}
-            </div>
-          )}
+                      <Checkbox
+                        checked={formData.days.includes(d.value)}
+                        onCheckedChange={() => toggleWeekday(d.value)}
+                      />
+                      <span>{d.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            {scheduleError ? (
+              <p className="text-sm text-destructive">{scheduleError}</p>
+            ) : null}
+          </div>
 
           {/* Target Domain */}
           <div className="space-y-2">

@@ -32,12 +32,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Upload, Pencil, X } from "lucide-react";
+import { Upload, Pencil, X, ChevronsUpDown, Check } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const SketchPicker = dynamic(
   () => import("react-color").then((m) => m.SketchPicker),
   { ssr: false },
 );
+
+const PLATFORM_OPTIONS = [
+  { value: "apple", label: "Apple" },
+  { value: "google", label: "Google" },
+];
 
 const DURATION_OPTIONS = [
   { value: "1 month", label: "1 month" },
@@ -144,6 +150,10 @@ function SubscriptionAddEditModal({
   const [appleProductId, setAppleProductId] = useState("");
   const [googleProductId, setGoogleProductId] = useState("");
   const [totalBookings, setTotalBookings] = useState("");
+  const [platform, setPlatform] = useState("");
+  const [platformOpen, setPlatformOpen] = useState(false);
+  const [isAiGenerated, setIsAiGenerated] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!openModal) return;
@@ -194,6 +204,8 @@ function SubscriptionAddEditModal({
             "",
         ),
       );
+      setPlatform(fullPlan.platform ?? "");
+      setIsAiGenerated(Boolean(fullPlan.isAiGenerated));
       const imgRaw =
         fullPlan.image ?? fullPlan.imageUrl ?? fullPlan.image_url;
       const img =
@@ -216,9 +228,12 @@ function SubscriptionAddEditModal({
       setAppleProductId("");
       setGoogleProductId("");
       setTotalBookings("");
+      setPlatform("");
+      setIsAiGenerated(false);
       setImagePreview("");
       setImageFile(null);
     }
+    setErrors({});
   }, [openModal, isEdit, fullPlan]);
 
   const handleAddFeature = () => {
@@ -252,13 +267,25 @@ function SubscriptionAddEditModal({
     formData.append("scheduleBookingCount", totalBookings.trim() || "0");
     formData.append("appleProductId", appleProductId.trim());
     formData.append("googleProductId", googleProductId.trim());
+    formData.append("platform", platform);
+    formData.append("isAiGenerated", String(isAiGenerated));
     features.forEach((f) => formData.append("featureList", f.trim()));
     if (imageFile) formData.append("image", imageFile);
     return formData;
   };
 
+  const validate = () => {
+    const errs = {};
+    if (!title.trim()) errs.title = "Plan title is required.";
+    if (!price.trim()) errs.price = "Price is required.";
+    if (!platform) errs.platform = "Please select a platform.";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validate()) return;
     const formData = buildPlanFormData();
     try {
       if (isEdit && planId) {
@@ -295,13 +322,14 @@ function SubscriptionAddEditModal({
           <ScrollArea className="flex-1 min-h-0 overflow-auto">
             <div className="px-6 py-4 space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Plan Title</Label>
+                <Label className="text-sm font-medium">Plan Title <span className="text-red-500">*</span></Label>
                 <Input
                   placeholder="Enter your subscription plan name"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className={`border-gray-200 ${fieldHeight}`}
+                  onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: "" })); }}
+                  className={`border-gray-200 ${fieldHeight} ${errors.title ? "border-red-500" : ""}`}
                 />
+                {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium">Plan Subtitle</Label>
@@ -314,15 +342,16 @@ function SubscriptionAddEditModal({
               </div>
               <div className="grid grid-cols-2 gap-4 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">Price</Label>
+                  <Label className="text-sm font-medium">Price <span className="text-red-500">*</span></Label>
                   <Input
                     placeholder="Enter plan price..."
                     value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    onChange={(e) => { setPrice(e.target.value); setErrors((p) => ({ ...p, price: "" })); }}
                     type="number"
                     min="0"
-                    className={`border-gray-200 w-full ${fieldHeight}`}
+                    className={`border-gray-200 w-full ${fieldHeight} ${errors.price ? "border-red-500" : ""}`}
                   />
+                  {errors.price && <p className="text-xs text-red-500">{errors.price}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium">Duration</Label>
@@ -455,6 +484,65 @@ function SubscriptionAddEditModal({
                     onChange={(e) => setGoogleProductId(e.target.value)}
                     className={`border-gray-200 ${fieldHeight}`}
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Chosen Platform <span className="text-red-500">*</span></Label>
+                  <Popover open={platformOpen} onOpenChange={setPlatformOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={platformOpen}
+                        className={`w-full justify-between border-gray-200 font-normal ${fieldHeight} ${errors.platform ? "border-red-500" : ""}`}
+                      >
+                        {platform
+                          ? PLATFORM_OPTIONS.find((o) => o.value === platform)?.label
+                          : "Select platform..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1 w-[var(--radix-popover-trigger-width)]">
+                      {PLATFORM_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-gray-100"
+                          onClick={() => {
+                            setPlatform(opt.value === platform ? "" : opt.value);
+                            setPlatformOpen(false);
+                            setErrors((p) => ({ ...p, platform: "" }));
+                          }}
+                        >
+                          <Check
+                            className={`h-4 w-4 shrink-0 ${platform === opt.value ? "opacity-100" : "opacity-0"}`}
+                          />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                  {errors.platform && <p className="text-xs text-red-500">{errors.platform}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">AI Generated Task</Label>
+                  <div className={`flex items-center gap-3 border border-gray-200 rounded-md px-3 ${fieldHeight}`}>
+                    <Switch
+                      checked={isAiGenerated}
+                      onCheckedChange={setIsAiGenerated}
+                      id="isAiGenerated"
+                    />
+                    <label
+                      htmlFor="isAiGenerated"
+                      className="text-sm text-gray-600 cursor-pointer select-none"
+                    >
+                      {isAiGenerated ? "Enabled" : "Disabled"}
+                    </label>
+                  </div>
                 </div>
               </div>
 
