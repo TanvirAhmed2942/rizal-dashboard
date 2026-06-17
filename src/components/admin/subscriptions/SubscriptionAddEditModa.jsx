@@ -1,25 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  useCreatePlanMutation,
-  useUpdatePlanMutation,
-  useGetPlanByIdQuery,
-} from "@/redux/Apis/admin/planApi/planApi";
-import useToast from "@/hooks/useToast";
-import { getImageUrl } from "@/utils/getImageUrl";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -27,13 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Upload, Pencil, X, ChevronsUpDown, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import useToast from "@/hooks/useToast";
+import {
+  useCreatePlanMutation,
+  useGetPlanByIdQuery,
+  useUpdatePlanMutation,
+} from "@/redux/Apis/admin/planApi/planApi";
+import { getImageUrl } from "@/utils/getImageUrl";
+import { Check, ChevronsUpDown, Pencil, Upload, X } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
 const SketchPicker = dynamic(
   () => import("react-color").then((m) => m.SketchPicker),
@@ -58,21 +58,32 @@ const DEFAULT_BUTTON_TEXT = "#ffffff";
 
 const fieldHeight = "h-9";
 
-/** Convert hex color (#e0f2fe or e0f2fe) to decimal string for API */
-function hexToDecimal(hex) {
-  if (!hex || typeof hex !== "string") return "0";
-  const cleaned = hex.replace(/^#/, "").trim();
-  const num = parseInt(cleaned, 16);
-  return Number.isNaN(num) ? "0" : String(num);
+/** ARGB32 bit-shift: ((a << 24) | (r << 16) | (g << 8) | b) >>> 0 */
+function hexToDecimal(a, r, g, b) {
+  return ((a << 24) | (r << 16) | (g << 8) | b) >>> 0;
 }
 
-/** Convert decimal (number or string) from API to hex for color picker */
+/** Convert hex color string to ARGB32 integer (alpha = 255 by default) */
+function colorToDecimal(hex, alpha = 255) {
+  if (!hex || typeof hex !== "string") return hexToDecimal(alpha, 0, 0, 0);
+  const cleaned = hex.replace(/^#/, "").trim().padEnd(6, "0").slice(0, 6);
+  const num = parseInt(cleaned, 16);
+  if (Number.isNaN(num)) return hexToDecimal(alpha, 0, 0, 0);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  return hexToDecimal(alpha, r, g, b);
+}
+
+
+
+/** Convert ARGB32 integer (or decimal string) from API back to hex for color picker */
 function decimalToHex(dec) {
   if (dec == null) return "";
   const num = typeof dec === "string" ? parseInt(dec, 10) : Number(dec);
   if (Number.isNaN(num)) return "";
-  const hex = Math.max(0, Math.min(0xffffff, Math.floor(num))).toString(16);
-  return `#${hex.padStart(6, "0")}`;
+  const rgb = num & 0xffffff;
+  return `#${rgb.toString(16).padStart(6, "0")}`;
 }
 
 function ColorPickerField({ label, color, onChange }) {
@@ -109,10 +120,10 @@ function ColorPickerField({ label, color, onChange }) {
   );
 }
 
-/** Normalize API plan (from getPlanById or list) for form: support data.data or data */
+/** Normalize API plan response — handles data.data (double-nested) or data */
 function normalizePlanForForm(plan) {
   if (!plan) return null;
-  const raw = plan?.data ?? plan;
+  const raw = plan?.data?.data ?? plan?.data ?? plan;
   return raw && typeof raw === "object" ? raw : plan;
 }
 
@@ -147,8 +158,7 @@ function SubscriptionAddEditModal({
   const [buttonTextColor, setButtonTextColor] = useState(DEFAULT_BUTTON_TEXT);
   const [featureInput, setFeatureInput] = useState("");
   const [features, setFeatures] = useState([]);
-  const [appleProductId, setAppleProductId] = useState("");
-  const [googleProductId, setGoogleProductId] = useState("");
+  const [productId, setProductId] = useState("");
   const [totalBookings, setTotalBookings] = useState("");
   const [platform, setPlatform] = useState("");
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -192,16 +202,13 @@ function SubscriptionAddEditModal({
             ? featureList.split(";").filter(Boolean)
             : [],
       );
-      setAppleProductId(fullPlan.appleProductId ?? fullPlan.apple_product_id ?? "");
-      setGoogleProductId(
-        fullPlan.googleProductId ?? fullPlan.google_product_id ?? "",
-      );
+      setProductId(fullPlan.productId ?? "");
       setTotalBookings(
         String(
           fullPlan.scheduleBookingCount ??
-            fullPlan.totalBookings ??
-            fullPlan.schedule_booking_count ??
-            "",
+          fullPlan.totalBookings ??
+          fullPlan.schedule_booking_count ??
+          "",
         ),
       );
       setPlatform(fullPlan.platform ?? "");
@@ -225,8 +232,7 @@ function SubscriptionAddEditModal({
       setButtonTextColor(DEFAULT_BUTTON_TEXT);
       setFeatureInput("");
       setFeatures([]);
-      setAppleProductId("");
-      setGoogleProductId("");
+      setProductId("");
       setTotalBookings("");
       setPlatform("");
       setIsAiGenerated(false);
@@ -234,7 +240,7 @@ function SubscriptionAddEditModal({
       setImageFile(null);
     }
     setErrors({});
-  }, [openModal, isEdit, fullPlan]);
+  }, [openModal, isEdit, planByIdResponse, planData]);
 
   const handleAddFeature = () => {
     const text = featureInput.trim();
@@ -260,13 +266,12 @@ function SubscriptionAddEditModal({
     formData.append("title", title.trim());
     formData.append("subtitle", subtitle.trim());
     formData.append("price", price.trim() || "0");
-    formData.append("backgroundColor", hexToDecimal(backgroundColor));
-    formData.append("buttonColor", hexToDecimal(buttonColor));
-    formData.append("buttonTextColor", hexToDecimal(buttonTextColor));
+    formData.append("backgroundColor", colorToDecimal(backgroundColor));
+    formData.append("buttonColor", colorToDecimal(buttonColor));
+    formData.append("buttonTextColor", colorToDecimal(buttonTextColor));
     formData.append("duration", duration);
     formData.append("scheduleBookingCount", totalBookings.trim() || "0");
-    formData.append("appleProductId", appleProductId.trim());
-    formData.append("googleProductId", googleProductId.trim());
+    formData.append("productId", productId.trim());
     formData.append("platform", platform);
     formData.append("isAiGenerated", String(isAiGenerated));
     features.forEach((f) => formData.append("featureList", f.trim()));
@@ -306,7 +311,7 @@ function SubscriptionAddEditModal({
 
   return (
     <Dialog open={openModal} onOpenChange={setOpenModal}>
-      <DialogContent className="max-w-2xl h-[90vh] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle className="text-center text-lg font-semibold">
             {isEdit
@@ -462,29 +467,14 @@ function SubscriptionAddEditModal({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 items-end">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">
-                    Apple Product ID
-                  </Label>
-                  <Input
-                    placeholder="Enter apple product id here..."
-                    value={appleProductId}
-                    onChange={(e) => setAppleProductId(e.target.value)}
-                    className={`border-gray-200 ${fieldHeight}`}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium">
-                    Google Product ID
-                  </Label>
-                  <Input
-                    placeholder="Enter google product id here..."
-                    value={googleProductId}
-                    onChange={(e) => setGoogleProductId(e.target.value)}
-                    className={`border-gray-200 ${fieldHeight}`}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Product ID</Label>
+                <Input
+                  placeholder="Enter product id here..."
+                  value={productId}
+                  onChange={(e) => setProductId(e.target.value)}
+                  className={`border-gray-200 ${fieldHeight}`}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4 items-end">
@@ -561,21 +551,21 @@ function SubscriptionAddEditModal({
           </ScrollArea>
 
           <DialogFooter className="px-6 py-4 border-t shrink-0 flex flex-row items-center justify-end">
-<Button
-            type="submit"
-            disabled={isCreateLoading || isUpdateLoading || (isEdit && isLoadingPlan)}
-            className="bg-gray-800 hover:bg-gray-700 text-white h-9 px-4"
-          >
-            {isCreateLoading
-              ? "Creating..."
-              : isUpdateLoading
-                ? "Saving..."
-                : isEdit && isLoadingPlan
-                  ? "Loading..."
-                  : isEdit
-                    ? "Save Changes"
-                    : "Create"}
-          </Button>
+            <Button
+              type="submit"
+              disabled={isCreateLoading || isUpdateLoading || (isEdit && isLoadingPlan)}
+              className="bg-gray-800 hover:bg-gray-700 text-white h-9 px-4"
+            >
+              {isCreateLoading
+                ? "Creating..."
+                : isUpdateLoading
+                  ? "Saving..."
+                  : isEdit && isLoadingPlan
+                    ? "Loading..."
+                    : isEdit
+                      ? "Save Changes"
+                      : "Create"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
