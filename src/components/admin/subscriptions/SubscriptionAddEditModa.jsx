@@ -163,6 +163,7 @@ function SubscriptionAddEditModal({
   const [platform, setPlatform] = useState("");
   const [platformOpen, setPlatformOpen] = useState(false);
   const [isAiGenerated, setIsAiGenerated] = useState(false);
+  const [planType, setPlanType] = useState("");
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -213,6 +214,7 @@ function SubscriptionAddEditModal({
       );
       setPlatform(fullPlan.platform ?? "");
       setIsAiGenerated(Boolean(fullPlan.isAiGenerated));
+      setPlanType(fullPlan.planType ?? "");
       const imgRaw =
         fullPlan.image ?? fullPlan.imageUrl ?? fullPlan.image_url;
       const img =
@@ -236,6 +238,7 @@ function SubscriptionAddEditModal({
       setTotalBookings("");
       setPlatform("");
       setIsAiGenerated(false);
+      setPlanType("");
       setImagePreview("");
       setImageFile(null);
     }
@@ -265,7 +268,9 @@ function SubscriptionAddEditModal({
     const formData = new FormData();
     formData.append("title", title.trim());
     formData.append("subtitle", subtitle.trim());
-    formData.append("price", price.trim() || "0");
+    const priceValue = price.trim() || "0";
+    formData.append("price", priceValue);
+    formData.append("planType", Number(priceValue) > 0 ? "paid" : "free");
     formData.append("backgroundColor", colorToDecimal(backgroundColor));
     formData.append("buttonColor", colorToDecimal(buttonColor));
     formData.append("buttonTextColor", colorToDecimal(buttonTextColor));
@@ -345,7 +350,7 @@ function SubscriptionAddEditModal({
                   className={`border-gray-200 ${fieldHeight}`}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4 items-end">
+              <div className="grid grid-cols-2 gap-4 items-start">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium">Price <span className="text-red-500">*</span></Label>
                   <Input
@@ -354,8 +359,12 @@ function SubscriptionAddEditModal({
                     onChange={(e) => { setPrice(e.target.value); setErrors((p) => ({ ...p, price: "" })); }}
                     type="number"
                     min="0"
-                    className={`border-gray-200 w-full ${fieldHeight} ${errors.price ? "border-red-500" : ""}`}
+                    disabled={isEdit && planType === "free"}
+                    className={`border-gray-200 w-full ${fieldHeight} ${errors.price ? "border-red-500" : ""} ${isEdit && planType === "free" ? "opacity-60 cursor-not-allowed" : ""}`}
                   />
+                  {isEdit && planType === "free" && (
+                    <p className="text-xs text-gray-400">Free plan price cannot be changed.</p>
+                  )}
                   {errors.price && <p className="text-xs text-red-500">{errors.price}</p>}
                 </div>
                 <div className="space-y-1.5">
@@ -480,14 +489,15 @@ function SubscriptionAddEditModal({
               <div className="grid grid-cols-2 gap-4 items-end">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium">Chosen Platform <span className="text-red-500">*</span></Label>
-                  <Popover open={platformOpen} onOpenChange={setPlatformOpen}>
+                  <Popover open={isEdit ? false : platformOpen} onOpenChange={isEdit ? undefined : setPlatformOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         type="button"
                         variant="outline"
                         role="combobox"
                         aria-expanded={platformOpen}
-                        className={`w-full justify-between border-gray-200 font-normal ${fieldHeight} ${errors.platform ? "border-red-500" : ""}`}
+                        disabled={isEdit}
+                        className={`w-full justify-between border-gray-200 font-normal ${fieldHeight} ${errors.platform ? "border-red-500" : ""} ${isEdit ? "opacity-60 cursor-not-allowed" : ""}`}
                       >
                         {platform
                           ? PLATFORM_OPTIONS.find((o) => o.value === platform)?.label

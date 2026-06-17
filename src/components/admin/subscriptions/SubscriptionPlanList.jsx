@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { FaApple, FaGoogle } from "react-icons/fa";
 import {
   Table,
   TableBody,
@@ -133,6 +134,9 @@ function SubscriptionPlanList({ onEdit }) {
               <TableHead className="text-gray-700 font-medium">
                 Status
               </TableHead>
+              <TableHead className="text-gray-700 font-medium">
+                Platform
+              </TableHead>
               <TableHead className="text-gray-700 font-medium text-right">
                 Actions
               </TableHead>
@@ -142,7 +146,7 @@ function SubscriptionPlanList({ onEdit }) {
             {isLoading || isFetching ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="h-24 text-center text-gray-500"
                 >
                   Loading plans...
@@ -151,7 +155,7 @@ function SubscriptionPlanList({ onEdit }) {
             ) : paginatedPlans.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="h-24 text-center text-gray-500"
                 >
                   No plans found.
@@ -187,6 +191,25 @@ function SubscriptionPlanList({ onEdit }) {
                       checked={Boolean(plan.status ?? plan.isActive)}
                       onCheckedChange={() => handleStatusToggle(planId(plan))}
                     />
+                  </TableCell>
+                  <TableCell>
+                    {plan.platform ? (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                          ${plan.platform === "apple"
+                            ? "bg-gray-900 text-white"
+                            : plan.platform === "google"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 text-gray-700"
+                          }`}
+                      >
+                        {plan.platform === "apple" && <FaApple className="w-3 h-3" />}
+                        {plan.platform === "google" && <FaGoogle className="w-3 h-3" />}
+                        {plan.platform}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
                     <button
