@@ -13,7 +13,11 @@ import SubscriptionAddEditModal from "./SubscriptionAddEditModa";
 function SubscriptionsLayout() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
-  const { refetch: refetchPlans } = useGetPlanDataQuery();
+  const { data: planResponse, refetch: refetchPlans } = useGetPlanDataQuery();
+  const plans = React.useMemo(() => {
+    const raw = planResponse?.data?.data ?? planResponse?.data;
+    return Array.isArray(raw) ? raw : [];
+  }, [planResponse]);
 
   const handleAddPlan = useCallback(() => {
     setEditingPlan(null);
@@ -36,7 +40,7 @@ function SubscriptionsLayout() {
           <HiPlus size={15} /> Add New Plan
         </Button>
       </div>
-      <Stats />
+      <Stats plans={plans} />
       <SubscriptionPlanList onEdit={handleEditPlan} />
       <TransactionList />
       <SubscriptionAddEditModal

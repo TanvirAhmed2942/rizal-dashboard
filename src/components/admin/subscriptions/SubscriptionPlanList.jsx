@@ -1,15 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import { FaApple, FaGoogle } from "react-icons/fa";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import DeleteConfirmationModal from "@/components/common/deleteconfirmation/deleteConfirmationModal";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -18,14 +9,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
-  useGetPlanDataQuery,
-  useDeletePlanMutation,
-} from "@/redux/Apis/admin/planApi/planApi";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import useToast from "@/hooks/useToast";
-import DeleteConfirmationModal from "@/components/common/deleteconfirmation/deleteConfirmationModal";
+import {
+  useDeletePlanMutation,
+  useGetPlanDataQuery,
+  useTogglePlanStatusMutation,
+} from "@/redux/Apis/admin/planApi/planApi";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { FaApple, FaGoogle } from "react-icons/fa";
 
 const PAGE_SIZES = [5, 10, 20, 50];
 
@@ -39,12 +40,14 @@ function normalizePlansResponse(response) {
 function SubscriptionPlanList({ onEdit }) {
   const toast = useToast();
   const [deletePlan, { isLoading: isDeletingPlan }] = useDeletePlanMutation();
+  const [togglePlanStatus] = useTogglePlanStatusMutation();
+
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
-  const { data: response, isLoading, isFetching } = useGetPlanDataQuery();
-
+  const [localStatus, setLocalStatus] = useState({});
+  const { data: response, isLoading } = useGetPlanDataQuery();
   const plans = useMemo(() => normalizePlansResponse(response), [response]);
 
   useEffect(() => {
@@ -94,8 +97,18 @@ function SubscriptionPlanList({ onEdit }) {
     }
   };
 
-  const handleStatusToggle = (planId) => {
-    // TODO: wire to API when plan status update is available
+  const handleStatusToggle = async (plan) => {
+    const id = planId(plan);
+    const currentStatus = Boolean(plan.status ?? plan.isActive);
+    const newStatus = !currentStatus;
+    setLocalStatus((prev) => ({ ...prev, [id]: newStatus }));
+    try {
+      await togglePlanStatus({ id, isActive: newStatus }).unwrap();
+      toast.success("Plan status updated.");
+    } catch (err) {
+      setLocalStatus((prev) => ({ ...prev, [id]: currentStatus }));
+      toast.error(err?.data?.message ?? "Failed to update status.");
+    }
   };
 
   const planId = (p) => p.id ?? p._id ?? "";
@@ -143,7 +156,7 @@ function SubscriptionPlanList({ onEdit }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading || isFetching ? (
+            {isLoading ? (
               <TableRow>
                 <TableCell
                   colSpan={9}
@@ -188,8 +201,12 @@ function SubscriptionPlanList({ onEdit }) {
                   <TableCell>
                     <Switch
                       className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-gray-300"
-                      checked={Boolean(plan.status ?? plan.isActive)}
-                      onCheckedChange={() => handleStatusToggle(planId(plan))}
+                      checked={
+                        localStatus[planId(plan)] !== undefined
+                          ? localStatus[planId(plan)]
+                          : Boolean(plan.status ?? plan.isActive)
+                      }
+                      onCheckedChange={() => handleStatusToggle(plan)}
                     />
                   </TableCell>
                   <TableCell>
@@ -199,8 +216,8 @@ function SubscriptionPlanList({ onEdit }) {
                           ${plan.platform === "apple"
                             ? "bg-gray-900 text-white"
                             : plan.platform === "google"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-100 text-gray-700"
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-100 text-gray-700"
                           }`}
                       >
                         {plan.platform === "apple" && <FaApple className="w-3 h-3" />}

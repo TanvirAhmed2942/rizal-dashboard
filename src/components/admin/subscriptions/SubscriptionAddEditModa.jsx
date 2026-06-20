@@ -166,6 +166,8 @@ function SubscriptionAddEditModal({
   const [planType, setPlanType] = useState("");
   const [errors, setErrors] = useState({});
 
+
+
   useEffect(() => {
     if (!openModal) return;
     if (isEdit && fullPlan) {
@@ -278,7 +280,7 @@ function SubscriptionAddEditModal({
     formData.append("scheduleBookingCount", totalBookings.trim() || "0");
     formData.append("productId", productId.trim());
     formData.append("platform", platform);
-    formData.append("isAiGenerated", String(isAiGenerated));
+    formData.append("isAiGenerated", isAiGenerated);
     features.forEach((f) => formData.append("featureList", f.trim()));
     if (imageFile) formData.append("image", imageFile);
     return formData;
@@ -532,6 +534,7 @@ function SubscriptionAddEditModal({
                   <Label className="text-sm font-medium">AI Generated Task</Label>
                   <div className={`flex items-center gap-3 border border-gray-200 rounded-md px-3 ${fieldHeight}`}>
                     <Switch
+                      type="button"
                       checked={isAiGenerated}
                       onCheckedChange={setIsAiGenerated}
                       id="isAiGenerated"

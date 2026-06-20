@@ -22,13 +22,12 @@ export const planApi = baseApi.injectEndpoints({
         url: `/package/${id}`,
         method: "GET",
       }),
-      providesTags: (result, error, { id }) =>
+      providesTags: (_result, _error, { id }) =>
         id ? [{ type: "Plan", id }] : ["Plan"],
     }),
 
     createPlan: builder.mutation({
       query: (formData) => {
-        // FormData is sent as multipart/form-data; do not set Content-Type (baseApi handles it)
         return {
           url: "/package/create-package",
           method: "POST",
@@ -46,6 +45,16 @@ export const planApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["Plan"],
     }),
+
+    togglePlanStatus: builder.mutation({
+      query: ({ id, isActive }) => ({
+        url: `/package/${id}`,
+        method: "PATCH",
+        body: { isActive },
+      }),
+      invalidatesTags: ["Plan"],
+    }),
+
     deletePlan: builder.mutation({
       query: ({ id }) => ({
         url: `/package/${id}`,
@@ -61,5 +70,6 @@ export const {
   useGetPlanByIdQuery,
   useCreatePlanMutation,
   useUpdatePlanMutation,
+  useTogglePlanStatusMutation,
   useDeletePlanMutation,
 } = planApi;
