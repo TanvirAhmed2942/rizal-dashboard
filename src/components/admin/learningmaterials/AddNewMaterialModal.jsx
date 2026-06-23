@@ -1,23 +1,26 @@
 "use client";
-import React, { useCallback, useState, useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
 import { Loader, X } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Form,
+  FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormControl,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -25,16 +28,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import useToast from "@/hooks/useToast";
 import { useGetAllCategoriesQuery } from "@/redux/Apis/admin/categoryApi/categoryApi";
 import {
   useCreateCourseMutation,
   useUpdateCourseMutation,
 } from "@/redux/Apis/admin/courseApi/courseApi";
-import useToast from "@/hooks/useToast";
 
 const AddNewMaterialModal = React.memo(function AddNewMaterialModal({
   openModal,
@@ -197,9 +197,9 @@ const AddNewMaterialModal = React.memo(function AddNewMaterialModal({
         if (response?.success) {
           toast.success(
             response.message ||
-              (isEdit
-                ? "Course updated successfully"
-                : "Course created successfully")
+            (isEdit
+              ? "Course updated successfully"
+              : "Course created successfully")
           );
           setOpenModal(false);
           // Form will be reset by useEffect when openModal becomes false
@@ -332,7 +332,7 @@ const AddNewMaterialModal = React.memo(function AddNewMaterialModal({
                   control={form.control}
                   name="categoryId"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className={"w-full"}>
                       <FormLabel>Category</FormLabel>
                       <Select
                         onValueChange={field.onChange}
@@ -340,7 +340,7 @@ const AddNewMaterialModal = React.memo(function AddNewMaterialModal({
                         disabled={isCategoriesLoading}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue
                               placeholder={
                                 isCategoriesLoading

@@ -1,12 +1,12 @@
-import { backendBaseUrl } from "./src/redux/store/backendBaseUrl.js";
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
+    const backendUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL || "http://10.10.26.185:5002";
     return [
       {
         source: "/api/v1/:path*",
-        destination: `${backendBaseUrl}/api/v1/:path*`,
+        destination: `${backendUrl}/api/v1/:path*`,
       },
     ];
   },

@@ -8,6 +8,7 @@ export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl,
+    credentials: "include",
     prepareHeaders: (headers, { endpoint, type, originalArgs }) => {
       // Get all tokens from cookies
       const accessToken = getCookie("accessToken");
