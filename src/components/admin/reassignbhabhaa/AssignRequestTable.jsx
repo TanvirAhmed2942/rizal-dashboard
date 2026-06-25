@@ -64,14 +64,16 @@ function mapRequestItem(item) {
   };
 }
 
-function AssignRequestTable({ onAssign }) {
+function AssignRequestTable({ onAssign, type = "user-requested" }) {
   const { data: apiResponse, isLoading } =
     useGetAllrequestForAssignReassignQuery({});
 
   const requests = React.useMemo(() => {
     const list = apiResponse?.data ?? [];
+    // TODO: Add filtering based on type if API supports it
+    // For now, show all requests - adjust when API provides type distinction
     return list.map(mapRequestItem).filter(Boolean);
-  }, [apiResponse?.data]);
+  }, [apiResponse?.data, type]);
 
   if (isLoading) {
     return (

@@ -58,6 +58,31 @@ export const adminmanagementApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["AdminManagement", "Dashboard"],
     }),
+
+    getAllUsers: builder.query({
+      query: ({ role, page = 1, limit = 10, search = "" } = {}) => {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: limit.toString(),
+        });
+        if (role) params.append("role", role);
+        if (search) params.append("searchTerm", search);
+        return {
+          url: `/users/all-users?${params.toString()}`,
+          method: "GET",
+        };
+      },
+      providesTags: ["AdminManagement"],
+    }),
+
+    reassignBhaBhaaAdmin: builder.mutation({
+      query: (data) => ({
+        url: `/bha-bhaa-reassign/reassign-by-admin`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["AdminManagement", "AssignReassign"],
+    }),
   }),
 });
 
@@ -66,4 +91,6 @@ export const {
   useBlockAdminMutation,
   useCreateAdminMutation,
   useDeleteAdminMutation,
+  useGetAllUsersQuery,
+  useReassignBhaBhaaAdminMutation,
 } = adminmanagementApi;

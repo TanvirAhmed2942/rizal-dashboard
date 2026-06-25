@@ -1,7 +1,5 @@
 "use client";
 
-import { Settings } from "lucide-react";
-import Link from "next/link";
 import {
   Sidebar,
   SidebarContent,
@@ -15,27 +13,24 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import Image from "next/image";
-import { AiOutlineMessage } from "react-icons/ai";
-import { CgFileDocument } from "react-icons/cg";
-import { GrDiamond, GrTask } from "react-icons/gr";
-import { LuBookOpen, LuCalendarDays } from "react-icons/lu";
-import { LuSquareUserRound } from "react-icons/lu";
-import { RxDashboard } from "react-icons/rx";
-import { FaUsers } from "react-icons/fa";
-import { LuFileCheck } from "react-icons/lu";
-import { LuFileLock2 } from "react-icons/lu";
-import { RiArticleLine } from "react-icons/ri";
-import { BiCategory } from "react-icons/bi";
-import { FaQuoteRight } from "react-icons/fa6";
-import { usePathname } from "next/navigation";
-import { RiAdminLine } from "react-icons/ri";
-import { TbFishHook } from "react-icons/tb";
-import { TbAB2 } from "react-icons/tb";
-import { IoIosNotificationsOutline } from "react-icons/io";
 import { socket } from "@/socket/socket";
-import { useEffect, useState } from "react";
 import { getCookie } from "@/utils/cookies";
+import { ChevronDown, ChevronRight, Settings } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { AiOutlineMessage } from "react-icons/ai";
+import { BiCategory } from "react-icons/bi";
+import { CgFileDocument } from "react-icons/cg";
+import { FaUsers } from "react-icons/fa";
+import { FaQuoteRight } from "react-icons/fa6";
+import { GrDiamond, GrTask } from "react-icons/gr";
+import { IoIosNotificationsOutline } from "react-icons/io";
+import { LuBookOpen, LuCalendarDays, LuFileCheck, LuFileLock2, LuSquareUserRound } from "react-icons/lu";
+import { RiAdminLine, RiArticleLine } from "react-icons/ri";
+import { RxDashboard } from "react-icons/rx";
+import { TbAB2, TbFishHook } from "react-icons/tb";
 const sidebars = {
   admin: [
     { name: "Dashboard", path: "/admin/dashboard", icon: RxDashboard },
@@ -57,8 +52,19 @@ const sidebars = {
     },
     {
       name: "Reassign BHA & BHAA",
-      path: "/admin/reassign-bha-bhaa",
       icon: TbAB2,
+      subItems: [
+        {
+          name: "User Requested BHA & BHAA",
+          path: "/admin/reassign-bha-bhaa/user-requested",
+          icon: TbAB2,
+        },
+        {
+          name: "Admin Assign By BHA & BHAA",
+          path: "/admin/reassign-bha-bhaa/admin-assign",
+          icon: TbAB2,
+        },
+      ],
     },
     {
       name: "Admin Management",
@@ -187,6 +193,7 @@ const sidebars = {
 };
 export function AppSidebar() {
   const [showBadge, setShowBadge] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState(new Set());
   const pathname = usePathname();
   const [currentUserId, setCurrentUserId] = useState("");
 
@@ -258,6 +265,30 @@ export function AppSidebar() {
     return subItems.some((subItem) => isActive(subItem.path));
   };
 
+  // Toggle menu expansion
+  const toggleMenu = (menuName) => {
+    setExpandedMenus((prev) => {
+      const next = new Set(prev);
+      if (next.has(menuName)) {
+        next.delete(menuName);
+      } else {
+        next.add(menuName);
+      }
+      return next;
+    });
+  };
+
+  // Auto-expand menus that have active subItems on mount
+  useEffect(() => {
+    const newExpanded = new Set();
+    currentSidebar.forEach((item) => {
+      if (item.subItems && isSubMenuActive(item.subItems)) {
+        newExpanded.add(item.name);
+      }
+    });
+    setExpandedMenus(newExpanded);
+  }, [currentSidebar, pathname]);
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -279,12 +310,14 @@ export function AppSidebar() {
                 const itemIsActive = hasSubItems
                   ? isSubMenuActive(item.subItems)
                   : isActive(item.path);
+                const isExpanded = expandedMenus.has(item.name);
 
                 return (
                   <SidebarMenuItem key={item.name}>
                     {hasSubItems ? (
                       <>
                         <SidebarMenuButton
+                          onClick={() => toggleMenu(item.name)}
                           className={
                             itemIsActive
                               ? "bg-primary/10 text-primary font-medium"
@@ -293,29 +326,36 @@ export function AppSidebar() {
                         >
                           <item.icon />
                           <span>{item.name}</span>
+                          {isExpanded ? (
+                            <ChevronDown className="ml-auto size-4" />
+                          ) : (
+                            <ChevronRight className="ml-auto size-4" />
+                          )}
                         </SidebarMenuButton>
-                        <SidebarMenuSub>
-                          {item.subItems.map((subItem) => {
-                            const subItemIsActive = isActive(subItem.path);
-                            return (
-                              <SidebarMenuSubItem key={subItem.name}>
-                                <SidebarMenuButton
-                                  asChild
-                                  className={
-                                    subItemIsActive
-                                      ? "bg-primary/10 text-primary font-medium"
-                                      : ""
-                                  }
-                                >
-                                  <Link href={subItem.path}>
-                                    <subItem.icon />
-                                    <span>{subItem.name}</span>
-                                  </Link>
-                                </SidebarMenuButton>
-                              </SidebarMenuSubItem>
-                            );
-                          })}
-                        </SidebarMenuSub>
+                        {isExpanded && (
+                          <SidebarMenuSub>
+                            {item.subItems.map((subItem) => {
+                              const subItemIsActive = isActive(subItem.path);
+                              return (
+                                <SidebarMenuSubItem key={subItem.name}>
+                                  <SidebarMenuButton
+                                    asChild
+                                    className={
+                                      subItemIsActive
+                                        ? "bg-primary/10 text-primary font-medium"
+                                        : ""
+                                    }
+                                  >
+                                    <Link href={subItem.path}>
+                                      <subItem.icon />
+                                      <span>{subItem.name}</span>
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        )}
                       </>
                     ) : (
                       <SidebarMenuButton
