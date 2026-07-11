@@ -83,6 +83,11 @@ const sidebars = {
       icon: FaUsers,
     },
     {
+      name: "AI Promt Update",
+      path: "/admin/ai-promt-update",
+      icon: FaUsers,
+    },
+    {
       name: "Learning Management",
       path: "/admin/learning-management",
       icon: LuBookOpen,
@@ -278,7 +283,6 @@ export function AppSidebar() {
     });
   };
 
-  // Auto-expand menus that have active subItems on mount
   useEffect(() => {
     const newExpanded = new Set();
     currentSidebar.forEach((item) => {

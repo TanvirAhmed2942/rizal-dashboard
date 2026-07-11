@@ -60,6 +60,33 @@ export const assignTaskApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ["AssignTask"],
     }),
+
+    generateGetAPi: builder.query({
+      query: (userId) => ({
+        url: `/task/domain-by-task?userId=${userId}`,
+        method: "GET",
+      }),
+      providesTags: ["AssignTask"],
+    }),
+
+    generateByAi: builder.mutation({
+      query: (data) => ({
+        url: "/task/generate-by-ai",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["AssignTask"],
+    }),
+
+    createByDoctor: builder.mutation({
+      query: (data) => ({
+        url: "/task/create-by-doctor",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["AssignTask"],
+    }),
+
   }),
 });
 
@@ -68,4 +95,7 @@ export const {
   useGetAllTasksQuery,
   useCreateTaskMutation,
   useDeleteTaskMutation,
+  useGenerateGetAPiQuery,
+  useGenerateByAiMutation,
+  useCreateByDoctorMutation,
 } = assignTaskApi;

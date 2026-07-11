@@ -47,7 +47,7 @@ function SubscriptionPlanList({ onEdit }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState(null);
   const [localStatus, setLocalStatus] = useState({});
-  const { data: response, isLoading } = useGetPlanDataQuery();
+  const { data: response, isLoading } = useGetPlanDataQuery({ page: 1, limit: 1000 });
   const plans = useMemo(() => normalizePlansResponse(response), [response]);
 
   useEffect(() => {

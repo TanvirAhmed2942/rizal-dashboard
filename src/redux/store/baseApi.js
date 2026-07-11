@@ -18,7 +18,7 @@ export const baseApi = createApi({
       const resetPassToken = getCookie("resetPassToken");
 
       // Set Authorization header with accessToken (for authenticated requests)
-      if (accessToken) {
+      if (accessToken && endpoint !== "generateGetAPi") {
         headers.set("Authorization", `Bearer ${accessToken}`);
       }
 
@@ -38,7 +38,7 @@ export const baseApi = createApi({
       }
 
       // Legacy token support (if needed)
-      if (token && !accessToken) {
+      if (token && !accessToken && endpoint !== "generateGetAPi") {
         headers.set("Authorization", `Bearer ${token}`);
       }
 

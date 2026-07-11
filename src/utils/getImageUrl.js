@@ -1,4 +1,3 @@
-import { baseUrl } from "@/redux/store/baseUrl";
 
 /**
  * Get the full image URL from a path
@@ -28,7 +27,7 @@ export const getImageUrl = (imagePath, fallback = "") => {
     return imagePath;
   }
 
-  // If it's a blob URL, return as is
+
   if (imagePath.startsWith("blob:")) {
     return imagePath;
   }

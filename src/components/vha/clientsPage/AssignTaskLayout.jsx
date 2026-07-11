@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
 import SearchFilterButton from "@/components/common/SearchFilterButton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -13,20 +14,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Scrollbar } from "@radix-ui/react-scroll-area";
-import { Badge } from "@/components/ui/badge";
-import AddEditTaskModal from "./viewdetails/AddEditTaskModal";
-import { useParams } from "next/navigation";
+import useToast from "@/hooks/useToast";
 import {
-  useGetAssignTaskDataQuery,
   useCreateTaskMutation,
   useDeleteTaskMutation,
+  useGetAssignTaskDataQuery,
 } from "@/redux/Apis/bha/assigntaskApi/assignTaskApi";
+import { useGetSessionManagementDataByIdQuery } from "@/redux/Apis/bha/sessionmanagementApi/sessionmanagementApi";
 import formatDate from "@/utils/FormatDate/formatDate";
-import useToast from "@/hooks/useToast";
-import { Loader2 } from "lucide-react";
-import { Trash2 } from "lucide-react";
+import { Scrollbar } from "@radix-ui/react-scroll-area";
+import { Loader2, Sparkles, Trash2 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+import AddEditTaskModal from "./viewdetails/AddEditTaskModal";
+import GenerateAiTaskModal from "./viewdetails/GenerateAiTaskModal";
+
 
 function AssignTaskLayout() {
   const { id } = useParams();
@@ -36,10 +38,16 @@ function AssignTaskLayout() {
     isLoading: isAssignTaskDataLoading,
     refetch,
   } = useGetAssignTaskDataQuery({ id });
+
+  const { data: bookingDetailsData } = useGetSessionManagementDataByIdQuery({ id }, { skip: !id });
+
+  console.log("assign Tast data", assignTaskData)
+
   const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
   const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -88,8 +96,20 @@ function AssignTaskLayout() {
       doctorBookingId: task.doctorBookingId,
     })) || [];
 
-  // Get user name from the first task if available
-  const userName = assignTaskData?.data?.[0]?.userId?.fullName || "Client";
+  // Get user name from booking details or tasks if available
+  const userName =
+    bookingDetailsData?.data?.userId?.fullName ||
+    assignTaskData?.data?.[0]?.userId?.fullName ||
+    "Client";
+
+  const clientUser = bookingDetailsData?.data?.userId;
+  // If isAiGenerated is false and subscriptionPlanType is paid, show Generate AI button
+  const showGenerateAiButton =
+    clientUser &&
+    clientUser.isAiGenerated === false &&
+    clientUser.subscriptionPlanType === "paid";
+
+  console.log("showGenerateAiButton", clientUser)
 
   const handleAddClick = () => {
     setEditingTask(null);
@@ -137,7 +157,16 @@ function AssignTaskLayout() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-3 flex-wrap">
+        {showGenerateAiButton && (
+          <Button
+            className="bg-[#FF8045] hover:bg-[#E56A2E] text-white flex items-center gap-1.5 font-medium transition-all duration-200"
+            onClick={() => setIsAiModalOpen(true)}
+          >
+            <Sparkles className="size-4" />
+            Generate AI Task
+          </Button>
+        )}
         <Button
           className="bg-sky-500 text-white hover:bg-sky-600"
           onClick={handleAddClick}
@@ -169,6 +198,14 @@ function AssignTaskLayout() {
         initialData={editingTask}
         isLoading={isCreating}
         doctorBookingId={id}
+      />
+      <GenerateAiTaskModal
+        openModal={isAiModalOpen}
+        setOpenModal={setIsAiModalOpen}
+        userId={clientUser?._id || assignTaskData?.data?.[0]?.userId?._id || (typeof assignTaskData?.data?.[0]?.userId === "string" ? assignTaskData?.data?.[0]?.userId : null)}
+        onGenerate={(data) => {
+          console.log("Generating AI strategy with details:", data);
+        }}
       />
     </div>
   );
@@ -232,17 +269,16 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className={`${
-                      data.status === "pending"
-                        ? "bg-yellow-500 text-white border-yellow-500"
-                        : data.status === "completed"
+                    className={`${data.status === "pending"
+                      ? "bg-yellow-500 text-white border-yellow-500"
+                      : data.status === "completed"
                         ? "bg-lime-500 text-white border-lime-500"
                         : data.status === "overdue"
-                        ? "bg-red-500 text-white border-red-500"
-                        : data.status === "in-progress"
-                        ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-gray-500 text-white border-gray-500"
-                    } px-2 py-1 text-center font-medium text-xs inline-block w-20 capitalize`}
+                          ? "bg-red-500 text-white border-red-500"
+                          : data.status === "in-progress"
+                            ? "bg-blue-500 text-white border-blue-500"
+                            : "bg-gray-500 text-white border-gray-500"
+                      } px-2 py-1 text-center font-medium text-xs inline-block w-20 capitalize`}
                   >
                     {data.status}
                   </Badge>
