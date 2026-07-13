@@ -28,6 +28,15 @@ import { useState } from "react";
 import { useCreateByDoctorMutation, useGenerateByAiMutation, useGenerateGetAPiQuery } from '../../../../redux/Apis/bha/assigntaskApi/assignTaskApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../ui/select';
 
+// Helper function to check if two dates are the same day
+const isSameDay = (date1, date2) => {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
 const DOMAIN_OPTIONS = [
   {
     id: "executive_inhibition",
@@ -242,6 +251,15 @@ const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, doctorBookingId,
     if (!current.endDateTime) {
       toast.error("Please select end date.");
       return;
+    }
+
+    // Check if start date is today and selected time is earlier than current time
+    const now = new Date();
+    if (isSameDay(current.startDateTime, now)) {
+      if (current.startDateTime < now) {
+        toast.error("Please select a time later than current time.");
+        return;
+      }
     }
 
     if (generatedTaskIndex < generatedTasks.length - 1) {
