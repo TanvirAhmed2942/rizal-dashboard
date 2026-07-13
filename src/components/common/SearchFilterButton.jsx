@@ -20,9 +20,9 @@ function SearchFilterButton({
   searchText = "",
   setSearchText = () => { },
   status = "All Status",
-  setStatus = () => {},
+  setStatus = () => { },
   selectedDate = "",
-  setSelectedDate = () => {},
+  setSelectedDate = () => { },
 }) {
   return (
     <div className="flex items-center gap-2 ">
@@ -55,7 +55,7 @@ function SearchFilterButton({
         </Button>
       )}
 
-      {searchByDate && (
+      {/* {searchByDate && (
         <div className="flex items-center gap-2">
           <Input
             type="date"
@@ -64,7 +64,7 @@ function SearchFilterButton({
             onChange={(e) => setSelectedDate(e.target.value)}
           />
         </div>
-      )}
+      )} */}
     </div>
   );
 }

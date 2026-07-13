@@ -25,7 +25,8 @@ import formatDate from "@/utils/FormatDate/formatDate";
 import { Scrollbar } from "@radix-ui/react-scroll-area";
 import { Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
 import AddEditTaskModal from "./viewdetails/AddEditTaskModal";
 import GenerateAiTaskModal from "./viewdetails/GenerateAiTaskModal";
 
@@ -49,7 +50,18 @@ function AssignTaskLayout() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [localTasks, setLocalTasks] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+
+  // Sync local tasks with API data when it loads
+  useEffect(() => {
+    if (assignTaskData?.data) {
+      setLocalTasks(assignTaskData.data);
+    }
+  }, [assignTaskData]);
 
   const formatTime = (dateString) => {
     if (!dateString) return "N/A";
@@ -77,18 +89,18 @@ function AssignTaskLayout() {
 
   // Map API data to table format
   const tasks =
-    assignTaskData?.data?.map((task) => ({
+    localTasks?.map((task) => ({
       id: task._id,
       taskName: task.title,
       taskDescription: task.description,
-      targetDomain: task.targetDomain,
+      targetDomain: task.domain || task.targetDomain,
       targetDomainId: task.targetDomainId,
       type: task.type === "weekly" ? "weekly" : "daily",
       days: Array.isArray(task.days) ? task.days : [],
       daysLabel: formatDaysList(task.days),
       startDate: formatDate(task.startDate),
       endDate: formatDate(task.endDate),
-      startTime: formatTime(task.startDate),
+      startTime: formatTime(task.startTime),
       endTime: formatTime(task.endDate),
       status: task.status,
       userId: task.userId?._id,
@@ -121,15 +133,30 @@ function AssignTaskLayout() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (taskId) => {
+  const handleDelete = (taskId) => {
+    setDeletingId(taskId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    // First, update local state for instant UI update
+    setLocalTasks((prev) => prev.filter((task) => task._id !== deletingId));
+
     try {
-      setDeletingId(taskId);
-      await deleteTask({ id: taskId }).unwrap();
-      toast.success("Task deleted successfully");
-      refetch();
+      const result = await deleteTask({ id: deletingId }).unwrap();
+      if (result.success) {
+        toast.success("Task deleted successfully");
+        await refetch(); // Refetch to sync localTasks with server
+      }
+      setIsDeleteModalOpen(false);
+      setDeletingId(null);
     } catch (error) {
-      toast.error(error?.data?.message || "Failed to delete task");
-    } finally {
+      // If delete fails, revert local state to original data
+      if (assignTaskData?.data) {
+        setLocalTasks(assignTaskData.data);
+      }
+      toast.error(error?.data?.message || error?.message || "Failed to delete task");
+      setIsDeleteModalOpen(false);
       setDeletingId(null);
     }
   };
@@ -147,11 +174,16 @@ function AssignTaskLayout() {
         endDate: taskData.endDate,
       };
 
-      await createTask(payload).unwrap();
-      toast.success("Task created successfully");
-      setIsModalOpen(false);
+      const result = await createTask(payload).unwrap();
+      if (result.success) {
+        toast.success("Task created successfully");
+        await refetch(); // Refetch to sync localTasks
+        setIsModalOpen(false);
+      } else {
+        throw new Error(result.message);
+      }
     } catch (error) {
-      toast.error(error?.data?.message || "Failed to create task");
+      toast.error(error?.data?.message || error?.message || "Failed to create task");
     }
   };
 
@@ -184,9 +216,29 @@ function AssignTaskLayout() {
         placeholder="Search Task"
         searchByDate={true}
         showFilterButton={false}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
       />
       <TaskDetailsTable
-        tasks={tasks}
+        tasks={
+          tasks.filter((task) => {
+            // Search filter
+            const matchesSearch =
+              !searchText ||
+              task.taskName.toLowerCase().includes(searchText.toLowerCase()) ||
+              (task.taskDescription && task.taskDescription.toLowerCase().includes(searchText.toLowerCase()));
+
+            // Date filter: check if task starts or ends on selected date
+            const matchesDate =
+              !selectedDate ||
+              (task.startDate && task.startDate.includes(selectedDate)) ||
+              (task.endDate && task.endDate.includes(selectedDate));
+
+            return matchesSearch && matchesDate;
+          })
+        }
         onEdit={handleEditClick}
         onDelete={handleDelete}
         deletingId={deletingId}
@@ -203,10 +255,45 @@ function AssignTaskLayout() {
         openModal={isAiModalOpen}
         setOpenModal={setIsAiModalOpen}
         userId={clientUser?._id || assignTaskData?.data?.[0]?.userId?._id || (typeof assignTaskData?.data?.[0]?.userId === "string" ? assignTaskData?.data?.[0]?.userId : null)}
+        doctorBookingId={id}
         onGenerate={(data) => {
           console.log("Generating AI strategy with details:", data);
         }}
       />
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -226,11 +313,11 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
             <TableHead>Task Description</TableHead>
             <TableHead>Target Domain</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Days</TableHead>
+
             <TableHead>Start Date</TableHead>
             <TableHead>Start Time</TableHead>
             <TableHead>End Date</TableHead>
-            <TableHead>End Time</TableHead>
+
             <TableHead>Status</TableHead>
             <TableHead>Action</TableHead>
           </TableRow>
@@ -243,7 +330,7 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
               </TableCell>
             </TableRow>
           ) : (
-            tasks.map((data) => (
+            tasks?.reverse().map((data) => (
               <TableRow key={data.id}>
                 <TableCell className="font-medium">{data.taskName}</TableCell>
                 <TableCell className="font-medium">
@@ -259,13 +346,10 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="capitalize">{data.type || "—"}</TableCell>
-                <TableCell className="max-w-[160px] text-sm">
-                  {data.type === "weekly" ? data.daysLabel : "—"}
-                </TableCell>
+
                 <TableCell>{data.startDate}</TableCell>
                 <TableCell>{data.startTime}</TableCell>
                 <TableCell>{data.endDate}</TableCell>
-                <TableCell>{data.endTime}</TableCell>
                 <TableCell>
                   <Badge
                     variant="outline"

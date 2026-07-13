@@ -5,14 +5,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { TimePickerInput } from "@/components/ui/shadcn-io/rating/timepickerinput";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -22,9 +23,10 @@ import {
 } from "@/components/ui/tooltip";
 import useToast from "@/hooks/useToast";
 import { format } from "date-fns";
-import { CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Info, Loader, Sparkles, X } from "lucide-react";
+import { CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight, Info, Loader, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useCreateByDoctorMutation, useGenerateByAiMutation, useGenerateGetAPiQuery } from '../../../../redux/Apis/bha/assigntaskApi/assignTaskApi';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../ui/select';
 
 const DOMAIN_OPTIONS = [
   {
@@ -79,7 +81,7 @@ const WEEKDAYS = [
   { value: "sunday", label: "Sunday" },
 ];
 
-const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, onGenerate }) => {
+const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, doctorBookingId, onGenerate }) => {
   const toast = useToast();
   const [step, setStep] = useState(1);
   const [selectedDomains, setSelectedDomains] = useState([]);
@@ -265,6 +267,7 @@ const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, onGenerate }) =>
             endDate,
             description: t.description,
             userId: userId,
+            doctorBookingId: doctorBookingId,
           };
         });
 
@@ -294,17 +297,15 @@ const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, onGenerate }) =>
   return (
     <Dialog open={openModal} onOpenChange={handleOpenChange}>
       <DialogContent className="p-0 overflow-hidden max-w-lg w-[92vw] sm:w-full rounded-3xl border-0 shadow-2xl transition-all duration-300">
+        <DialogHeader>
+          <DialogTitle className="sr-only">
+            {step === 1 ? "Choose Domain" : step === 2 ? "Select Domains" : step === 3 ? "Generate Strategy" : "Configure Task"}
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Step 1: Welcome / Explanation screen */}
         {step === 1 && (
           <div className="bg-[#EBF3F6] p-8 flex flex-col items-center relative text-center min-h-[580px] justify-between">
-            {/* Top Close button */}
-            <button
-              onClick={() => handleOpenChange(false)}
-              className="absolute right-4 top-4 text-gray-500 hover:text-gray-900 transition-colors"
-            >
-              <X className="size-5" />
-            </button>
 
             {/* Content Container */}
             <div className="flex-1 flex flex-col justify-center py-6">
@@ -668,37 +669,101 @@ const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, onGenerate }) =>
                     <label className="text-base text-gray-800 font-medium mb-1">
                       Time <span className="text-destructive">*</span>
                     </label>
-                    <Popover modal={true}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between bg-white border-gray-200 text-left font-normal text-sm"
-                        >
-                          <span className={currentTask.startDateTime ? "text-gray-800" : "text-gray-400 text-sm"}>
-                            {currentTask.startDateTime ? format(currentTask.startDateTime, "HH:mm") : "Select time"}
-                          </span>
-                          <ChevronDown className="size-4 shrink-0 opacity-60" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-3" align="start">
-                        <div className="flex items-center gap-2">
-                          <TimePickerInput
-                            picker="hours"
-                            date={currentTask.startDateTime ?? new Date()}
-                            setDate={(d) => updateGeneratedTaskField(generatedTaskIndex, "startDateTime", d)}
-                            onRightFocus={() => { }}
-                          />
-                          <span className="text-gray-400 font-medium">:</span>
-                          <TimePickerInput
-                            picker="minutes"
-                            date={currentTask.startDateTime ?? new Date()}
-                            setDate={(d) => updateGeneratedTaskField(generatedTaskIndex, "startDateTime", d)}
-                            onLeftFocus={() => { }}
-                            onRightFocus={() => { }}
-                          />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <div className="flex items-center gap-2 ">
+                      {/* Hour Select */}
+                      <Select
+                        value={
+                          currentTask.startDateTime
+                            ? format(currentTask.startDateTime, "h")
+                            : ""
+                        }
+                        onValueChange={(hourValue) => {
+                          // Initialize with today's date if no date set yet
+                          const currentDate = currentTask.startDateTime || new Date();
+                          const newDate = new Date(currentDate);
+                          const isPM = currentDate.getHours() >= 12;
+                          let newHour = parseInt(hourValue, 10);
+                          if (newHour === 12) {
+                            newHour = isPM ? 12 : 0;
+                          } else {
+                            newHour = isPM ? newHour + 12 : newHour;
+                          }
+                          newDate.setHours(newHour);
+                          updateGeneratedTaskField(generatedTaskIndex, "startDateTime", newDate);
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-white border-gray-200">
+                          <SelectValue placeholder="Hour" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                            <SelectItem key={hour} value={hour.toString()}>
+                              {hour.toString().padStart(2, "0")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <span className="text-gray-400 font-medium">:</span>
+
+                      {/* Minute Select */}
+                      <Select
+                        value={
+                          currentTask.startDateTime
+                            ? format(currentTask.startDateTime, "mm")
+                            : ""
+                        }
+                        onValueChange={(minuteValue) => {
+                          // Initialize with today's date if no date set yet
+                          const currentDate = currentTask.startDateTime || new Date();
+                          const newDate = new Date(currentDate);
+                          newDate.setMinutes(parseInt(minuteValue, 10));
+                          updateGeneratedTaskField(generatedTaskIndex, "startDateTime", newDate);
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-white border-gray-200">
+                          <SelectValue placeholder="Min" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                            <SelectItem key={minute} value={minute.toString().padStart(2, "0")}>
+                              {minute.toString().padStart(2, "0")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* AM/PM Select */}
+                      <Select
+                        value={
+                          currentTask.startDateTime
+                            ? format(currentTask.startDateTime, "aaa").toUpperCase()
+                            : ""
+                        }
+                        onValueChange={(period) => {
+                          // Initialize with today's date if no date set yet
+                          const currentDate = currentTask.startDateTime || new Date();
+                          const newDate = new Date(currentDate);
+                          let currentHours = newDate.getHours();
+                          if (period === "AM" && currentHours >= 12) {
+                            currentHours = currentHours === 12 ? 0 : currentHours - 12;
+                            newDate.setHours(currentHours);
+                          } else if (period === "PM" && currentHours < 12) {
+                            currentHours = currentHours === 0 ? 12 : currentHours + 12;
+                            newDate.setHours(currentHours);
+                          }
+                          updateGeneratedTaskField(generatedTaskIndex, "startDateTime", newDate);
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-white border-gray-200">
+                          <SelectValue placeholder="AM/PM" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="AM">AM</SelectItem>
+                          <SelectItem value="PM">PM</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* From Date */}

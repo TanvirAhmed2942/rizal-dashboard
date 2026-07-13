@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import SmallPageInfo from "@/components/common/SmallPageInfo";
 import AssignRequestTable from "./AssignRequestTable";
+import AdminAssignTable from "./AdminAssignTable";
 import RequestApporveModal from "./RequestApporveModal";
 import { useApproveRequestForAssignReassignMutation } from "@/redux/Apis/admin/assignreassignApi/assignreassingApi";
 import useToast from "@/hooks/useToast";
@@ -60,7 +61,11 @@ function ReassignBhaBhaaLayout({ type = "user-requested" }) {
         title={getTitle()}
         description={getDescription()}
       />
-      <AssignRequestTable onAssign={handleAssignClick} type={type} />
+      {type === "user-requested" ? (
+        <AssignRequestTable onAssign={handleAssignClick} type={type} />
+      ) : (
+        <AdminAssignTable />
+      )}
       <RequestApporveModal
         open={modalOpen}
         onOpenChange={setModalOpen}
