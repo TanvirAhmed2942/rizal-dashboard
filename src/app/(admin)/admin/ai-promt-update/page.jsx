@@ -1,9 +1,7 @@
 "use client";
 
-import SmallPageInfo from "@/components/common/SmallPageInfo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +11,7 @@ import {
   useUpdateMyProfileMutation,
 } from "@/redux/Apis/profileApi/profileApi";
 import { Loader, RotateCcw, Save, Sparkles } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AiPromptUpdatePage() {
   const { data: profileData, isLoading } = useGetMyProfileQuery();
@@ -102,13 +100,7 @@ export default function AiPromptUpdatePage() {
   return (
     <div className='p-5'>
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-6">
-        <SmallPageInfo
-          title="AI Prompt Configuration"
-          description="Configure how AI generates tasks for clients"
-          icon={<Sparkles className="w-6 h-6 text-orange-500" />}
-        />
-      </div>
+
 
       {/* Form Card */}
       {isLoading ? (
@@ -134,36 +126,11 @@ export default function AiPromptUpdatePage() {
               </div>
               Prompt Settings
             </CardTitle>
-            <p className="text-sm text-gray-500 mt-1">
-              These settings control how the AI generates task titles,
-              descriptions, and goals for clients.
-            </p>
+
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Task Title Length */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="taskTitleLength"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Task Title Length
-                </Label>
-                <Input
-                  id="taskTitleLength"
-                  placeholder="e.g., 50, 100, short, medium..."
-                  value={formData.taskTitleLength}
-                  onChange={(e) =>
-                    handleChange("taskTitleLength", e.target.value)
-                  }
-                />
-                <p className="text-xs text-gray-400">
-                  Define the preferred length or character count for AI-generated
-                  task titles.
-                </p>
-              </div>
-
               {/* Task Title Instruction */}
               <div className="space-y-2">
                 <Label
@@ -181,9 +148,6 @@ export default function AiPromptUpdatePage() {
                   }
                   className="min-h-[100px] resize-y"
                 />
-                <p className="text-xs text-gray-400">
-                  Guide the AI on tone, format, and content of task titles.
-                </p>
               </div>
 
               {/* Description Instruction */}
@@ -203,10 +167,6 @@ export default function AiPromptUpdatePage() {
                   }
                   className="min-h-[120px] resize-y"
                 />
-                <p className="text-xs text-gray-400">
-                  Instruct the AI on how detailed and structured the task
-                  descriptions should be.
-                </p>
               </div>
 
               {/* Goal Instruction */}
@@ -226,10 +186,6 @@ export default function AiPromptUpdatePage() {
                   }
                   className="min-h-[120px] resize-y"
                 />
-                <p className="text-xs text-gray-400">
-                  Define how the AI should formulate measurable goals for each
-                  task.
-                </p>
               </div>
 
               {/* Additional Instructions */}
@@ -249,10 +205,6 @@ export default function AiPromptUpdatePage() {
                   }
                   className="min-h-[120px] resize-y"
                 />
-                <p className="text-xs text-gray-400">
-                  Any supplementary instructions that apply across all
-                  AI-generated content.
-                </p>
               </div>
 
               {/* Action Buttons */}
