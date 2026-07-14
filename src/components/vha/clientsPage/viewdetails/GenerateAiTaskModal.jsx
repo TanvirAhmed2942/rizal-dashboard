@@ -178,8 +178,6 @@ const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, doctorBookingId,
 
         const response = await generateByAi(payload).unwrap();
         if (response?.success && response?.data) {
-          toast.success("AI strategies generated successfully!");
-
           const mapped = response.data.map((item) => ({
             name: item.name || "",
             goal: item.goal || "",
@@ -315,8 +313,8 @@ const GenerateAiTaskModal = ({ openModal, setOpenModal, userId, doctorBookingId,
   return (
     <Dialog open={openModal} onOpenChange={handleOpenChange}>
       <DialogContent className="p-0 overflow-hidden max-w-lg w-[92vw] sm:w-full rounded-3xl border-0 shadow-2xl transition-all duration-300">
-        <DialogHeader>
-          <DialogTitle className="sr-only">
+        <DialogHeader className="hidden">
+          <DialogTitle className="sr-only p-0">
             {step === 1 ? "Choose Domain" : step === 2 ? "Select Domains" : step === 3 ? "Generate Strategy" : "Configure Task"}
           </DialogTitle>
         </DialogHeader>

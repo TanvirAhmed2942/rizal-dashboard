@@ -23,12 +23,13 @@ import {
 import { useGetSessionManagementDataByIdQuery } from "@/redux/Apis/bha/sessionmanagementApi/sessionmanagementApi";
 import formatDate from "@/utils/FormatDate/formatDate";
 import { Scrollbar } from "@radix-ui/react-scroll-area";
-import { Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Eye, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
 import AddEditTaskModal from "./viewdetails/AddEditTaskModal";
 import GenerateAiTaskModal from "./viewdetails/GenerateAiTaskModal";
+import ViewTaskModal from './ViewTaskModal';
 
 
 function AssignTaskLayout() {
@@ -49,7 +50,9 @@ function AssignTaskLayout() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false); // New state for view modal
   const [editingTask, setEditingTask] = useState(null);
+  const [viewingTask, setViewingTask] = useState(null); // State for viewing task
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [localTasks, setLocalTasks] = useState([]);
@@ -106,6 +109,8 @@ function AssignTaskLayout() {
       userId: task.userId?._id,
       userName: task.userId?.fullName,
       doctorBookingId: task.doctorBookingId,
+      // Include all original data for view modal
+      originalData: task,
     })) || [];
 
   // Get user name from booking details or tasks if available
@@ -121,8 +126,6 @@ function AssignTaskLayout() {
     clientUser.isAiGenerated === false &&
     clientUser.subscriptionPlanType === "paid";
 
-  console.log("showGenerateAiButton", clientUser)
-
   const handleAddClick = () => {
     setEditingTask(null);
     setIsModalOpen(true);
@@ -131,6 +134,11 @@ function AssignTaskLayout() {
   const handleEditClick = (task) => {
     setEditingTask(task);
     setIsModalOpen(true);
+  };
+
+  const handleViewClick = (task) => {
+    setViewingTask(task);
+    setIsViewModalOpen(true);
   };
 
   const handleDelete = (taskId) => {
@@ -208,9 +216,7 @@ function AssignTaskLayout() {
       </div>
       <p className="text-lg font-bold">{userName}</p>
       <p className="text-lg font-bold">Task Details</p>
-      {isAssignTaskDataLoading && (
-        <p className="text-gray-500">Loading tasks...</p>
-      )}
+
       <SearchFilterButton
         showAddButton={false}
         placeholder="Search Task"
@@ -240,8 +246,10 @@ function AssignTaskLayout() {
           })
         }
         onEdit={handleEditClick}
+        onView={handleViewClick}
         onDelete={handleDelete}
         deletingId={deletingId}
+        isLoading={isAssignTaskDataLoading}
       />
       <AddEditTaskModal
         openModal={isModalOpen}
@@ -260,6 +268,14 @@ function AssignTaskLayout() {
           console.log("Generating AI strategy with details:", data);
         }}
       />
+
+      {/* View Task Modal */}
+      <ViewTaskModal
+        openModal={isViewModalOpen}
+        setOpenModal={setIsViewModalOpen}
+        taskData={viewingTask}
+      />
+
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <DialogContent>
@@ -300,7 +316,18 @@ function AssignTaskLayout() {
 
 export default AssignTaskLayout;
 
-export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
+export function TaskDetailsTable({ tasks, onEdit, onView, onDelete, deletingId, isLoading }) {
+  if (isLoading) {
+    return (
+      <div className="w-full rounded-md border p-8">
+        <div className="flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
+          <span className="ml-2 text-gray-500">Loading tasks...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ScrollArea className="w-full rounded-md border whitespace-nowrap">
       <Table>
@@ -330,7 +357,7 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
               </TableCell>
             </TableRow>
           ) : (
-            tasks?.reverse().map((data) => (
+            [...tasks]?.reverse().map((data) => (
               <TableRow key={data.id}>
                 <TableCell className="font-medium">{data.taskName}</TableCell>
                 <TableCell className="font-medium">
@@ -368,12 +395,14 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="w-auto flex justify-end gap-2 text-right">
-                  {/* <Button
+                  <Button
                     variant="outline"
-                    onClick={() => onEdit && onEdit(data)}
+                    size="icon"
+                    onClick={() => onView && onView(data)}
+                    className="hover:bg-blue-50"
                   >
-                    <FiEdit3 size={20} />
-                  </Button> */}
+                    <Eye size={20} className="text-blue-500" />
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => onDelete && onDelete(data.id)}
@@ -383,7 +412,7 @@ export function TaskDetailsTable({ tasks, onEdit, onDelete, deletingId }) {
                       <Loader2 className="animate-spin" size={20} color="red" />
                     ) : (
                       <Trash2 size={20} color="red" />
-                    )}{" "}
+                    )}
                   </Button>
                 </TableCell>
               </TableRow>
