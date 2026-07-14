@@ -12,14 +12,13 @@ import {
 } from "@/redux/Apis/profileApi/profileApi";
 import { Eye, Loader, RotateCcw, Save, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGenerateByAiMutation } from '../../../../redux/Apis/bha/assigntaskApi/assignTaskApi';
 
 
 const AiPrompt = {
-  "name": "Planning and Problem-Solving",
-  "task": "Drink more water daily",
-  "description": "Carry a reusable water bottle and refill it at least three times throughout the day to ensure adequate hydration.",
-  "goal": "Increase daily water intake to improve overall health and energy levels."
+  "task_domain": "Planning and Problem-Solving",
+  "task_title": "Drink more water daily",
+  "task_description": "Carry a reusable water bottle and refill it at least three times throughout the day to ensure adequate hydration.",
+  "task_goal": "Increase daily water intake to improve overall health and energy levels."
 }
 
 
@@ -28,8 +27,6 @@ export default function AiPromptUpdatePage() {
   const { data: profileData, isLoading } = useGetMyProfileQuery();
   const [updateProfile, { isLoading: isUpdating }] =
     useUpdateMyProfileMutation();
-  const [generateByAi, { isLoading: isGenerating }] =
-    useGenerateByAiMutation();
   const toast = useToast();
 
   const [formData, setFormData] = useState({
@@ -298,13 +295,10 @@ export default function AiPromptUpdatePage() {
                       <Eye className="w-4 h-4" />
                     </div>
                     <CardTitle className="text-lg font-semibold text-gray-800">
-                      Ai Prompt Generated Preview
+                      AI Task Generated Preview
                     </CardTitle>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Preview of Ai Prompt Generated JSON
-                </p>
               </CardHeader>
 
               <CardContent>
