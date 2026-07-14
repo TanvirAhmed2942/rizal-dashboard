@@ -260,7 +260,6 @@ export default function AiPromptUpdatePage() {
 
           {/* JSON Preview Section */}
           <div className='flex flex-col gap-5'>
-
             <Card className="lg:sticky lg:top-5 h-fit">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -300,7 +299,6 @@ export default function AiPromptUpdatePage() {
                   </div>
                 </div>
               </CardHeader>
-
               <CardContent>
                 <div className="bg-gray-50 rounded-lg p-4 overflow-auto max-h-[500px]">
                   <pre className="text-sm font-mono text-black whitespace-pre-wrap break-words">
@@ -309,11 +307,7 @@ export default function AiPromptUpdatePage() {
                 </div>
               </CardContent>
             </Card>
-
-
           </div>
-
-
         </div>
       )}
     </div>
